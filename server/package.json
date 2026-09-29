@@ -14,11 +14,13 @@
   "license": "ISC",
   "devDependencies": {
     "@types/node": "^26.6.3",
+    "prisma": "7.10.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",
+    "@prisma/client": "7.10.0",
     "hono": "^4.13.10"
   }
 }
