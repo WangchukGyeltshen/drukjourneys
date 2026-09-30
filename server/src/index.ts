@@ -1,10 +1,23 @@
+import 'dotenv/config'
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
+import { authRoutes } from './auth/routes.js'
 
 const app = new Hono()
 
 app.get('/', (c) => {
-  return c.json({ message: 'DrukJourneys API is running(v2)' })
+  return c.json({ message: 'DrukJourneys API is running' })
+})
+
+app.route('/auth', authRoutes)
+
+// Global error handler: catches anything not already caught inside a
+// route (malformed JSON bodies, unexpected database errors, etc.) and
+// returns a generic response instead of leaking internal error details
+// (stack traces, database error messages) to the client.
+app.onError((err, c) => {
+  console.error(err)
+  return c.json({ error: 'Something went wrong' }, 500)
 })
 
 const port = 3000

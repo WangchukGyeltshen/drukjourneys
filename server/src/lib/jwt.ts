@@ -1,0 +1,34 @@
+import { sign, verify } from 'hono/jwt'
+
+const JWT_SECRET = process.env.JWT_SECRET
+
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET is not set — check your .env file')
+}
+
+// What we store inside every token. Keeping this small and specific:
+// enough to authorize a request without hitting the database every time,
+// but nothing sensitive (never email, name, or nationality in here — a
+// JWT's payload is readable by anyone who has the token, it is only
+// tamper-proof, not secret).
+export type TokenPayload = {
+  sub: string // the user's id ("subject" — standard JWT claim name)
+  role: string
+  exp: number // expiry, as a Unix timestamp in seconds (standard JWT claim)
+}
+
+const TOKEN_LIFETIME_SECONDS = 60 * 60 * 2 // 2 hours
+
+export async function signAccessToken(userId: string, role: string): Promise<string> {
+  const payload: TokenPayload = {
+    sub: userId,
+    role,
+    exp: Math.floor(Date.now() / 1000) + TOKEN_LIFETIME_SECONDS,
+  }
+  return sign(payload, JWT_SECRET)
+}
+
+export async function verifyAccessToken(token: string): Promise<TokenPayload> {
+  const payload = await verify(token, JWT_SECRET)
+  return payload as unknown as TokenPayload
+}
