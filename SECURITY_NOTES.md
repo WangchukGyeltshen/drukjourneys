@@ -29,6 +29,19 @@ A running log of security-relevant decisions made during implementation: accepte
 
 ---
 
+## 2026-10-01 — Document upload: local-disk storage, deferred risk on encryption-at-rest
+
+**Context:** Built passport/ID document upload (FR-11) for Sprint 3. Decisions made:
+
+- **Server-side file type validation** — only PDF/JPG/PNG accepted (checked via the browser-reported MIME type), and file size capped at 10 MB, both enforced before any disk write.
+- **Random storage keys** — uploaded files are saved under a UUID-based filename, never the client-supplied original filename, to prevent path traversal and avoid leaking filesystem structure. The original filename is kept only as metadata in the database, and is sanitized (CR/LF and quotes stripped) before being placed in the `Content-Disposition` header on download, to prevent HTTP header injection.
+- **Ownership-checked downloads** — documents are served through an authenticated `GET /documents/:id/download` route that verifies the requesting user owns the document, rather than a public static file directory. No document is ever reachable by URL alone.
+- **Storage is local disk for now (DEFERRED RISK)** — the SDD specifies encrypted S3-compatible object storage for documents (NFR-6: passport data encrypted at rest). Local disk storage during development does **not** provide encryption at rest. This is an accepted/deferred risk for local development only; the storage layer (`src/lib/storage.ts`) is isolated behind a small function interface specifically so swapping in real encrypted object storage later does not require touching the document service or routes. **Must be resolved before any real user data (even test passport scans) is stored in anything other than a local dev environment.**
+
+**Follow-up:** Before deploying anywhere beyond local development, replace `src/lib/storage.ts` with an S3-compatible implementation using server-side encryption, and confirm `uploads/` is never included in any deployment artifact or backup taken off the dev machine.
+
+---
+
 ## Conventions for future entries
 
 - Date each entry (UTC-agnostic, local date is fine).

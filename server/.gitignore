@@ -3,3 +3,7 @@ node_modules
 .env
 
 /src/generated/prisma
+
+# Uploaded documents (passport/ID scans, etc.) — never commit these,
+# even in development. Local-disk storage only; see SECURITY_NOTES.md.
+/uploads

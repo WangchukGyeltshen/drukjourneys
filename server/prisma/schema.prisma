@@ -27,6 +27,7 @@ model User {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   refreshTokens RefreshToken[]
+  documents     Document[]
 
   @@map("users")
 }
@@ -67,4 +68,34 @@ model Package {
   updatedAt              DateTime        @updatedAt
 
   @@map("packages")
+}
+
+enum DocumentType {
+  PASSPORT
+  VISA
+  PERMIT
+  PHOTO
+  OTHER
+}
+
+enum DocumentStatus {
+  PENDING
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+model Document {
+  id               String         @id @default(uuid())
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  docType          DocumentType
+  status           DocumentStatus @default(PENDING)
+  storageKey       String         @unique
+  originalFilename String
+  mimeType         String
+  fileSizeBytes    Int
+  uploadedAt       DateTime       @default(now())
+
+  @@map("documents")
 }
