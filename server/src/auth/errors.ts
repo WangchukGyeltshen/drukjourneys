@@ -11,3 +11,10 @@ export class InvalidCredentialsError extends Error {
     this.name = 'InvalidCredentialsError'
   }
 }
+
+export class InvalidRefreshTokenError extends Error {
+  constructor() {
+    super('Invalid, expired, or revoked refresh token')
+    this.name = 'InvalidRefreshTokenError'
+  }
+}

@@ -20,3 +20,14 @@ export const loginSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>
 export type LoginInput = z.infer<typeof loginSchema>
+
+export const refreshSchema = z.object({
+  refreshToken: z.string().min(1, 'refreshToken is required'),
+})
+
+export const logoutSchema = z.object({
+  refreshToken: z.string().min(1, 'refreshToken is required'),
+})
+
+export type RefreshInput = z.infer<typeof refreshSchema>
+export type LogoutInput = z.infer<typeof logoutSchema>

@@ -1,7 +1,12 @@
 import * as argon2 from 'argon2'
 import { prisma } from '../lib/prisma.js'
 import type { RegisterInput, LoginInput } from './schemas.js'
-import { EmailAlreadyExistsError, InvalidCredentialsError } from './errors.js'
+import { EmailAlreadyExistsError, InvalidCredentialsError, InvalidRefreshTokenError } from './errors.js'
+import {
+  generateRawRefreshToken,
+  hashRefreshToken,
+  refreshTokenExpiry,
+} from '../lib/refresh-token.js'
 
 // Fields safe to send back to a client — never includes passwordHash.
 export type SafeUser = {
@@ -69,4 +74,67 @@ export async function authenticateUser(input: LoginInput): Promise<SafeUser> {
 export async function getUserById(id: string): Promise<SafeUser | null> {
   const user = await prisma.user.findUnique({ where: { id } })
   return user ? toSafeUser(user) : null
+}
+
+// Creates a new refresh token row for a user and returns the RAW token
+// (the only time the raw value exists outside the client's hands — only
+// its hash is ever stored).
+export async function issueRefreshToken(userId: string): Promise<string> {
+  const rawToken = generateRawRefreshToken()
+
+  await prisma.refreshToken.create({
+    data: {
+      userId,
+      tokenHash: hashRefreshToken(rawToken),
+      expiresAt: refreshTokenExpiry(),
+    },
+  })
+
+  return rawToken
+}
+
+// Validates an incoming refresh token, revokes it, and issues a
+// replacement (rotation). Returns the new raw refresh token plus the
+// user info needed to sign a new access token.
+export async function rotateRefreshToken(
+  rawToken: string
+): Promise<{ newRawToken: string; user: SafeUser }> {
+  const tokenHash = hashRefreshToken(rawToken)
+
+  const existing = await prisma.refreshToken.findUnique({
+    where: { tokenHash },
+    include: { user: true },
+  })
+
+  const isInvalid =
+    !existing || existing.revokedAt !== null || existing.expiresAt.getTime() < Date.now()
+
+  if (isInvalid) {
+    throw new InvalidRefreshTokenError()
+  }
+
+  // Revoke the one that was just used...
+  await prisma.refreshToken.update({
+    where: { id: existing!.id },
+    data: { revokedAt: new Date() },
+  })
+
+  // ...and issue a fresh one in its place.
+  const newRawToken = await issueRefreshToken(existing!.userId)
+
+  return { newRawToken, user: toSafeUser(existing!.user) }
+}
+
+// Used for logout: revokes a refresh token so it can no longer be used,
+// without waiting for it to expire naturally.
+export async function revokeRefreshToken(rawToken: string): Promise<void> {
+  const tokenHash = hashRefreshToken(rawToken)
+
+  // updateMany (not update) because we don't want this to throw if the
+  // token doesn't exist — logging out with an already-invalid token
+  // should still succeed quietly from the client's point of view.
+  await prisma.refreshToken.updateMany({
+    where: { tokenHash, revokedAt: null },
+    data: { revokedAt: new Date() },
+  })
 }
