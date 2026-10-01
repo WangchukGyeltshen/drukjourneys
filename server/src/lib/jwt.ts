@@ -25,10 +25,14 @@ export async function signAccessToken(userId: string, role: string): Promise<str
     role,
     exp: Math.floor(Date.now() / 1000) + TOKEN_LIFETIME_SECONDS,
   }
-  return sign(payload, JWT_SECRET)
+  // hono/jwt signs with HS256 by default when no algorithm is passed.
+  return sign(payload, JWT_SECRET, 'HS256')
 }
 
 export async function verifyAccessToken(token: string): Promise<TokenPayload> {
-  const payload = await verify(token, JWT_SECRET)
+  // Unlike sign(), verify() does NOT default the algorithm — it must be
+  // passed explicitly, or it throws "JwtAlgorithmRequired" even for a
+  // perfectly valid token.
+  const payload = await verify(token, JWT_SECRET, 'HS256')
   return payload as unknown as TokenPayload
 }

@@ -65,3 +65,8 @@ export async function authenticateUser(input: LoginInput): Promise<SafeUser> {
 
   return toSafeUser(user)
 }
+
+export async function getUserById(id: string): Promise<SafeUser | null> {
+  const user = await prisma.user.findUnique({ where: { id } })
+  return user ? toSafeUser(user) : null
+}

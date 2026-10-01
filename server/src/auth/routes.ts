@@ -1,10 +1,11 @@
 import { Hono } from 'hono'
 import { registerSchema, loginSchema } from './schemas.js'
-import { registerUser, authenticateUser } from './service.js'
+import { registerUser, authenticateUser, getUserById } from './service.js'
 import { signAccessToken } from '../lib/jwt.js'
 import { EmailAlreadyExistsError, InvalidCredentialsError } from './errors.js'
+import { requireAuth, type AuthVariables } from '../lib/auth-middleware.js'
 
-export const authRoutes = new Hono()
+export const authRoutes = new Hono<{ Variables: AuthVariables }>()
 
 async function parseJsonBody(c: { req: { json: () => Promise<unknown> } }) {
   try {
@@ -64,4 +65,19 @@ authRoutes.post('/login', async (c) => {
     }
     throw err
   }
+})
+
+// Protected: requires a valid JWT. requireAuth runs first — if the token
+// is missing/invalid, this handler never executes at all.
+authRoutes.get('/me', requireAuth, async (c) => {
+  const tokenPayload = c.get('user')
+  const user = await getUserById(tokenPayload.sub)
+
+  if (!user) {
+    // The token is valid, but the user it refers to no longer exists
+    // (e.g. deleted after the token was issued).
+    return c.json({ error: 'User not found' }, 404)
+  }
+
+  return c.json({ user })
 })
