@@ -42,3 +42,29 @@ model RefreshToken {
 
   @@map("refresh_tokens")
 }
+
+enum PackageCategory {
+  CULTURAL
+  TREKKING
+  FESTIVAL
+  PILGRIMAGE
+  ADVENTURE
+  WELLNESS
+}
+
+model Package {
+  id                     String          @id @default(uuid())
+  title                  String
+  description            String
+  dzongkhag              String
+  category               PackageCategory
+  durationDays           Int
+  basePrice              Decimal         @db.Decimal(10, 2)
+  currency               String          @default("USD")
+  requiresSpecialPermit  Boolean         @default(false)
+  isActive               Boolean         @default(true)
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  @@map("packages")
+}

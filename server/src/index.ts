@@ -2,6 +2,7 @@ import 'dotenv/config'
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { authRoutes } from './auth/routes.js'
+import { packageRoutes } from './package/routes.js'
 
 const app = new Hono()
 
@@ -10,6 +11,7 @@ app.get('/', (c) => {
 })
 
 app.route('/auth', authRoutes)
+app.route('/packages', packageRoutes)
 
 // Global error handler: catches anything not already caught inside a
 // route (malformed JSON bodies, unexpected database errors, etc.) and
