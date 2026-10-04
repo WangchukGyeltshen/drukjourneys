@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { createBookingSchema, calculateBookingSdfSchema, assignGuideSchema } from './schemas.js'
+import { createReviewSchema, updateReviewSchema } from '../review/schemas.js'
 import {
   createBooking,
   listBookingsForUser,
@@ -20,6 +21,8 @@ import {
   VehicleNotAvailableError,
 } from './errors.js'
 import { requireAuth, requireRole, type AuthVariables } from '../lib/auth-middleware.js'
+import { createReview, getReviewForBooking, updateReview } from '../review/service.js'
+import { BookingNotReviewableError, ReviewAlreadyExistsError, ReviewNotFoundError } from '../review/errors.js'
 
 export const bookingRoutes = new Hono<{ Variables: AuthVariables }>()
 
@@ -178,6 +181,93 @@ bookingRoutes.post('/:id/cancel', async (c) => {
     }
     if (err instanceof InvalidBookingStatusError) {
       return c.json({ error: err.message }, 409)
+    }
+    throw err
+  }
+})
+
+bookingRoutes.post('/:id/review', async (c) => {
+  const user = c.get('user')
+  const id = c.req.param('id')
+
+  let body: unknown
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'Request body must be valid JSON' }, 400)
+  }
+
+  const result = createReviewSchema.safeParse(body)
+  if (!result.success) {
+    return c.json(
+      { error: 'Validation failed', details: result.error.flatten().fieldErrors },
+      400
+    )
+  }
+
+  try {
+    const review = await createReview({ bookingId: id, userId: user.sub, input: result.data })
+    return c.json({ review }, 201)
+  } catch (err) {
+    if (err instanceof BookingNotFoundError) {
+      return c.json({ error: err.message }, 404)
+    }
+    if (err instanceof BookingAccessDeniedError) {
+      return c.json({ error: err.message }, 403)
+    }
+    if (err instanceof BookingNotReviewableError || err instanceof ReviewAlreadyExistsError) {
+      return c.json({ error: err.message }, 409)
+    }
+    throw err
+  }
+})
+
+bookingRoutes.get('/:id/review', async (c) => {
+  const user = c.get('user')
+  const id = c.req.param('id')
+
+  try {
+    const review = await getReviewForBooking({ bookingId: id, userId: user.sub, role: user.role })
+    return c.json({ review })
+  } catch (err) {
+    if (err instanceof BookingNotFoundError || err instanceof ReviewNotFoundError) {
+      return c.json({ error: err.message }, 404)
+    }
+    if (err instanceof BookingAccessDeniedError) {
+      return c.json({ error: err.message }, 403)
+    }
+    throw err
+  }
+})
+
+bookingRoutes.patch('/:id/review', async (c) => {
+  const user = c.get('user')
+  const id = c.req.param('id')
+
+  let body: unknown
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'Request body must be valid JSON' }, 400)
+  }
+
+  const result = updateReviewSchema.safeParse(body)
+  if (!result.success) {
+    return c.json(
+      { error: 'Validation failed', details: result.error.flatten().fieldErrors },
+      400
+    )
+  }
+
+  try {
+    const review = await updateReview({ bookingId: id, userId: user.sub, input: result.data })
+    return c.json({ review })
+  } catch (err) {
+    if (err instanceof BookingNotFoundError || err instanceof ReviewNotFoundError) {
+      return c.json({ error: err.message }, 404)
+    }
+    if (err instanceof BookingAccessDeniedError) {
+      return c.json({ error: err.message }, 403)
     }
     throw err
   }

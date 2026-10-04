@@ -29,6 +29,7 @@ model User {
   refreshTokens RefreshToken[]
   documents     Document[]
   bookings      Booking[]
+  reviews       Review[]
 
   @@map("users")
 }
@@ -126,6 +127,7 @@ model Booking {
   sdfRecord       SdfRecord?
   guideAssignment GuideAssignment?
   payment         Payment?
+  review          Review?
 
   @@map("bookings")
 }
@@ -225,4 +227,26 @@ model Payment {
   updatedAt   DateTime      @updatedAt
 
   @@map("payments")
+}
+
+model Review {
+  id             String   @id @default(uuid())
+  bookingId      String   @unique
+  booking        Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Package rating is required — every CONFIRMED booking has a package.
+  // Guide rating is optional: even though a CONFIRMED booking always has
+  // a guide assigned by the time it reaches this status, a traveler may
+  // not want to rate the guide specifically, only the trip overall.
+  packageRating  Int
+  packageComment String?
+  guideRating    Int?
+  guideComment   String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("reviews")
 }

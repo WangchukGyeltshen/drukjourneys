@@ -22,6 +22,7 @@ import {
   DuplicatePlateNumberError,
 } from './errors.js'
 import { requireAuth, requireRole, type AuthVariables } from '../lib/auth-middleware.js'
+import { listReviewsForGuide } from '../review/service.js'
 
 function handleFleetErrors(err: unknown, c: Context) {
   if (err instanceof GuideNotFoundError || err instanceof VehicleNotFoundError) {
@@ -104,6 +105,18 @@ guideRoutes.patch('/:id', async (c) => {
   try {
     const guide = await updateGuide(c.req.param('id'), result.data)
     return c.json({ guide })
+  } catch (err) {
+    const handled = handleFleetErrors(err, c)
+    if (handled) return handled
+    throw err
+  }
+})
+
+guideRoutes.get('/:id/reviews', async (c) => {
+  try {
+    const guide = await getGuideById(c.req.param('id'))
+    const result = await listReviewsForGuide(guide.id)
+    return c.json(result)
   } catch (err) {
     const handled = handleFleetErrors(err, c)
     if (handled) return handled

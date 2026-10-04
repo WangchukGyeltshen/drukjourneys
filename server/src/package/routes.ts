@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { listPackagesQuerySchema } from './schemas.js'
 import { listPackages, getPackageById } from './service.js'
+import { listReviewsForPackage } from '../review/service.js'
 
 export const packageRoutes = new Hono()
 
@@ -28,4 +29,17 @@ packageRoutes.get('/:id', async (c) => {
   }
 
   return c.json({ package: pkg })
+})
+
+// Public — reviews are a storefront trust signal, same reasoning as
+// package browsing itself having no auth requirement.
+packageRoutes.get('/:id/reviews', async (c) => {
+  const id = c.req.param('id')
+  const pkg = await getPackageById(id)
+  if (!pkg) {
+    return c.json({ error: 'Package not found' }, 404)
+  }
+
+  const result = await listReviewsForPackage(id)
+  return c.json(result)
 })
