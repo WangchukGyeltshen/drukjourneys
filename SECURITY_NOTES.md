@@ -55,6 +55,22 @@ A running log of security-relevant decisions made during implementation: accepte
 
 ---
 
+## 2026-10-04 — Fixed: auth middleware accidentally blocking the Stripe webhook
+
+**Found via:** Live end-to-end testing with the Stripe CLI (`stripe listen --forward-to localhost:3000/payments/webhook`). The webhook kept returning `401 Missing or malformed Authorization header` even though the webhook route itself has no `requireAuth` call and is not supposed to require a logged-in user at all.
+
+**Root cause:** `authedPaymentRoutes` (which legitimately requires a logged-in user for `/bookings/:id/payments/intent` and `/sync`) was mounted in `index.ts` at the root path (`app.route('/', authedPaymentRoutes)`). Because its `requireAuth` middleware was registered with a wildcard (`authedPaymentRoutes.use('*', requireAuth)`), and Hono composes matching middleware across the whole merged route tree rather than only within an isolated sub-path, mounting it at `/` caused that `requireAuth` check to run against **every** request handled by the app — including `POST /payments/webhook`, a route on a completely separate, intentionally unauthenticated sub-router. Stripe never sends an `Authorization` header (it authenticates via the `stripe-signature` header instead), so every webhook call was rejected before it ever reached the signature-verification code.
+
+**Why this matters beyond this one bug:** This is a routing/mounting mistake, not a logic mistake — the webhook's own signature-verification code was correct the entire time and was never actually exercised until this test. A route or middleware intended to be scoped can silently become global if it's mounted at `/` (or any prefix that's a parent of a route meant to stay public). This is exactly the kind of bug that passes a casual code review (the webhook handler itself looks correct in isolation) but fails in integration — which is why this was only caught by actually running `stripe listen` end-to-end, not by reading the code.
+
+**Fix:** Changed `authedPaymentRoutes`'s internal route paths from `/bookings/:id/payments/...` to `/:id/payments/...`, and mounted it at `app.route('/bookings', authedPaymentRoutes)` instead of `/`. Its `requireAuth` middleware is now scoped only to paths actually under `/bookings`, and no longer intercepts `/payments/webhook`.
+
+**Verified:** Full round trip tested with the Stripe CLI — `stripe listen` forwarded a real `payment_intent.succeeded` event, the webhook responded `200` (previously `401`), and the booking's status flipped to `CONFIRMED` in the database without calling the dev-only `/sync` endpoint at all.
+
+**Follow-up:** When adding any new authenticated sub-router in the future, mount it at the narrowest path prefix that's actually correct for it, never at `/`, and specifically double-check that doing so doesn't shadow any route meant to be public (webhooks, health checks, etc.). Worth a quick audit of `index.ts`'s other `app.route()` calls to confirm none of them have the same issue — they don't appear to (none of the others are mounted at `/`), but this is the kind of bug worth re-checking after any future route restructuring.
+
+---
+
 ## Conventions for future entries
 
 - Date each entry (UTC-agnostic, local date is fine).

@@ -20,9 +20,12 @@ app.route('/sdf', sdfRoutes)
 app.route('/documents', documentRoutes)
 app.route('/bookings', bookingRoutes)
 
-// authedPaymentRoutes already defines full paths like
-// /bookings/:id/payments/intent, so it's mounted at the root.
-app.route('/', authedPaymentRoutes)
+// authedPaymentRoutes defines routes like /:id/payments/intent, meant
+// to live under /bookings/:id/payments/... . It carries its own
+// requireAuth middleware scoped to this prefix — it must NOT be mounted
+// at '/', or that middleware would intercept every request in the app,
+// including the unauthenticated Stripe webhook below.
+app.route('/bookings', authedPaymentRoutes)
 app.route('/payments', stripeWebhookRoutes)
 
 // Global error handler: catches anything not already caught inside a

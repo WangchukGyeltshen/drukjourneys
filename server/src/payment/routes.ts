@@ -36,7 +36,7 @@ function handleSharedErrors(err: unknown, c: Context) {
 export const authedPaymentRoutes = new Hono<{ Variables: AuthVariables }>()
 authedPaymentRoutes.use('*', requireAuth)
 
-authedPaymentRoutes.post('/bookings/:id/payments/intent', async (c) => {
+authedPaymentRoutes.post('/:id/payments/intent', async (c) => {
   const user = c.get('user')
   const id = c.req.param('id')
 
@@ -55,7 +55,7 @@ authedPaymentRoutes.post('/bookings/:id/payments/intent', async (c) => {
 
 // DEV-ONLY convenience endpoint — see the comment on syncPaymentStatus
 // in service.ts for why this exists alongside the webhook.
-authedPaymentRoutes.post('/bookings/:id/payments/sync', async (c) => {
+authedPaymentRoutes.post('/:id/payments/sync', async (c) => {
   const user = c.get('user')
   const id = c.req.param('id')
 
