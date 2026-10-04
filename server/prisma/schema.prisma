@@ -28,6 +28,7 @@ model User {
   updatedAt     DateTime       @updatedAt
   refreshTokens RefreshToken[]
   documents     Document[]
+  bookings      Booking[]
 
   @@map("users")
 }
@@ -66,6 +67,7 @@ model Package {
   isActive               Boolean         @default(true)
   createdAt              DateTime        @default(now())
   updatedAt              DateTime        @updatedAt
+  bookings               Booking[]
 
   @@map("packages")
 }
@@ -98,4 +100,102 @@ model Document {
   uploadedAt       DateTime       @default(now())
 
   @@map("documents")
+}
+
+enum BookingStatus {
+  DRAFT
+  SDF_CALCULATED
+  GUIDE_ASSIGNED
+  CONFIRMED
+  CANCELLED
+}
+
+model Booking {
+  id             String          @id @default(uuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packageId      String
+  package        Package         @relation(fields: [packageId], references: [id])
+  status         BookingStatus   @default(DRAFT)
+  startDate      DateTime        @db.Date
+  endDate        DateTime        @db.Date
+  travelerCount  Int
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  sdfRecord       SdfRecord?
+  guideAssignment GuideAssignment?
+
+  @@map("bookings")
+}
+
+enum TravelerCategory {
+  INTERNATIONAL
+  INDIAN
+  BANGLADESHI
+  MALDIVIAN
+  DOMESTIC
+}
+
+model SdfRecord {
+  id               String           @id @default(uuid())
+  bookingId        String           @unique
+  booking          Booking          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  travelerCategory TravelerCategory
+  nights           Int
+  ratePerNight     Decimal          @db.Decimal(10, 2)
+  totalSdf         Decimal          @db.Decimal(10, 2)
+  currency         String
+  createdAt        DateTime         @default(now())
+
+  @@map("sdf_records")
+}
+
+enum GuideStatus {
+  AVAILABLE
+  ASSIGNED
+  INACTIVE
+}
+
+model Guide {
+  id             String            @id @default(uuid())
+  name           String
+  licenseNumber  String            @unique
+  status         GuideStatus       @default(AVAILABLE)
+  createdAt      DateTime          @default(now())
+
+  assignments    GuideAssignment[]
+
+  @@map("guides")
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  ASSIGNED
+  INACTIVE
+}
+
+model Vehicle {
+  id            String            @id @default(uuid())
+  plateNumber   String            @unique
+  type          String
+  status        VehicleStatus     @default(AVAILABLE)
+  createdAt     DateTime          @default(now())
+
+  assignments   GuideAssignment[]
+
+  @@map("vehicles")
+}
+
+model GuideAssignment {
+  id         String   @id @default(uuid())
+  bookingId  String   @unique
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  guideId    String
+  guide      Guide    @relation(fields: [guideId], references: [id])
+  vehicleId  String
+  vehicle    Vehicle  @relation(fields: [vehicleId], references: [id])
+  assignedAt DateTime @default(now())
+
+  @@map("guide_assignments")
 }

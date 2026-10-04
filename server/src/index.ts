@@ -5,6 +5,7 @@ import { authRoutes } from './auth/routes.js'
 import { packageRoutes } from './package/routes.js'
 import { sdfRoutes } from './sdf/routes.js'
 import { documentRoutes } from './document/routes.js'
+import { bookingRoutes } from './booking/routes.js'
 
 const app = new Hono()
 
@@ -16,6 +17,7 @@ app.route('/auth', authRoutes)
 app.route('/packages', packageRoutes)
 app.route('/sdf', sdfRoutes)
 app.route('/documents', documentRoutes)
+app.route('/bookings', bookingRoutes)
 
 // Global error handler: catches anything not already caught inside a
 // route (malformed JSON bodies, unexpected database errors, etc.) and

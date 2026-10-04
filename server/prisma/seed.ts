@@ -5,7 +5,14 @@ import { prisma } from '../src/lib/prisma.js'
 // existing packages first. Fine for a development seed script; this
 // approach would NOT be appropriate for a production migration.
 async function main() {
+  // Delete order matters: Booking has a foreign key to Package (and
+  // SdfRecord/GuideAssignment cascade-delete from Booking, but Guide and
+  // Vehicle do NOT cascade-delete, so bookings must go first, then
+  // packages/guides/vehicles can be safely cleared).
+  await prisma.booking.deleteMany()
   await prisma.package.deleteMany()
+  await prisma.guide.deleteMany()
+  await prisma.vehicle.deleteMany()
 
   await prisma.package.createMany({
     data: [
@@ -56,7 +63,21 @@ async function main() {
     ],
   })
 
-  console.log('Seeded 4 packages.')
+  await prisma.guide.createMany({
+    data: [
+      { name: 'Sonam Dorji', licenseNumber: 'TCB-GUIDE-0001' },
+      { name: 'Tshering Pem', licenseNumber: 'TCB-GUIDE-0002' },
+    ],
+  })
+
+  await prisma.vehicle.createMany({
+    data: [
+      { plateNumber: 'BP-1-A1234', type: 'SUV' },
+      { plateNumber: 'BP-1-B5678', type: 'Minibus' },
+    ],
+  })
+
+  console.log('Seeded 4 packages, 2 guides, 2 vehicles.')
 }
 
 main()

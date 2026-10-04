@@ -1,0 +1,191 @@
+import { prisma } from '../lib/prisma.js'
+import { calculateSdf } from '../sdf/engine.js'
+import type { CreateBookingInput, CalculateBookingSdfInput, AssignGuideInput } from './schemas.js'
+import {
+  PackageNotFoundError,
+  InvalidDateRangeError,
+  BookingNotFoundError,
+  BookingAccessDeniedError,
+  InvalidBookingStatusError,
+  GuideOrVehicleNotFoundError,
+} from './errors.js'
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24
+
+function nightsBetween(startDate: Date, endDate: Date): number {
+  return Math.round((endDate.getTime() - startDate.getTime()) / MS_PER_DAY)
+}
+
+export async function createBooking(userId: string, input: CreateBookingInput) {
+  if (input.endDate <= input.startDate) {
+    throw new InvalidDateRangeError()
+  }
+
+  // Re-check the package exists and is active server-side, even though
+  // the client presumably only showed active packages — never trust that
+  // the client only sent us something it was allowed to see.
+  const pkg = await prisma.package.findUnique({ where: { id: input.packageId } })
+  if (!pkg || !pkg.isActive) {
+    throw new PackageNotFoundError()
+  }
+
+  return prisma.booking.create({
+    data: {
+      userId,
+      packageId: input.packageId,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      travelerCount: input.travelerCount,
+    },
+  })
+}
+
+// Tourists see only their own bookings; Agents/Admins see everything.
+// The caller decides which to run based on the authenticated user's role.
+export async function listBookingsForUser(userId: string) {
+  return prisma.booking.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    include: { package: true, sdfRecord: true, guideAssignment: true },
+  })
+}
+
+export async function listAllBookings() {
+  return prisma.booking.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: { package: true, sdfRecord: true, guideAssignment: true },
+  })
+}
+
+async function getBookingOrThrow(bookingId: string) {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { package: true, sdfRecord: true, guideAssignment: true },
+  })
+  if (!booking) {
+    throw new BookingNotFoundError()
+  }
+  return booking
+}
+
+// Shared ownership check: a booking is visible to the tourist who made it,
+// or to any Agent/Admin. Used by every route below that operates on a
+// specific booking id.
+export async function getBookingForUser(params: {
+  bookingId: string
+  userId: string
+  role: string
+}) {
+  const booking = await getBookingOrThrow(params.bookingId)
+  const isOwner = booking.userId === params.userId
+  const isStaff = params.role === 'AGENT' || params.role === 'ADMIN'
+  if (!isOwner && !isStaff) {
+    throw new BookingAccessDeniedError()
+  }
+  return booking
+}
+
+export async function calculateAndPersistSdf(params: {
+  bookingId: string
+  userId: string
+  role: string
+  input: CalculateBookingSdfInput
+}) {
+  const booking = await getBookingForUser({
+    bookingId: params.bookingId,
+    userId: params.userId,
+    role: params.role,
+  })
+
+  if (booking.status !== 'DRAFT' && booking.status !== 'SDF_CALCULATED') {
+    throw new InvalidBookingStatusError(
+      'SDF can only be calculated while the booking is in DRAFT or SDF_CALCULATED status'
+    )
+  }
+
+  // Nights come from the booking's own stored dates, not from client
+  // input — this is the one source of truth, so the SDF can't be
+  // manipulated by sending a different night count than the actual stay.
+  const nights = nightsBetween(booking.startDate, booking.endDate)
+  const result = calculateSdf({
+    travelerCategory: params.input.travelerCategory,
+    nights,
+    age: params.input.age,
+  })
+
+  const sdfRecord = await prisma.sdfRecord.upsert({
+    where: { bookingId: booking.id },
+    create: {
+      bookingId: booking.id,
+      travelerCategory: result.travelerCategory,
+      nights: result.nights,
+      ratePerNight: result.amountPerNight,
+      totalSdf: result.totalSdf,
+      currency: result.currency,
+    },
+    update: {
+      travelerCategory: result.travelerCategory,
+      nights: result.nights,
+      ratePerNight: result.amountPerNight,
+      totalSdf: result.totalSdf,
+      currency: result.currency,
+    },
+  })
+
+  const updatedBooking = await prisma.booking.update({
+    where: { id: booking.id },
+    data: { status: 'SDF_CALCULATED' },
+  })
+
+  return { booking: updatedBooking, sdfRecord }
+}
+
+export async function assignGuide(params: { bookingId: string; input: AssignGuideInput }) {
+  const booking = await getBookingOrThrow(params.bookingId)
+
+  if (booking.status !== 'SDF_CALCULATED') {
+    throw new InvalidBookingStatusError(
+      'A guide can only be assigned after the SDF has been calculated for this booking'
+    )
+  }
+
+  const [guide, vehicle] = await Promise.all([
+    prisma.guide.findUnique({ where: { id: params.input.guideId } }),
+    prisma.vehicle.findUnique({ where: { id: params.input.vehicleId } }),
+  ])
+
+  if (!guide || !vehicle) {
+    throw new GuideOrVehicleNotFoundError()
+  }
+
+  // NOTE: this does not yet check whether the guide/vehicle is already
+  // assigned to an overlapping booking's dates — that conflict check is
+  // a known simplification for this sprint, flagged for a later pass
+  // once the agent console needs real scheduling logic.
+  await prisma.guideAssignment.create({
+    data: {
+      bookingId: booking.id,
+      guideId: guide.id,
+      vehicleId: vehicle.id,
+    },
+  })
+
+  return prisma.booking.update({
+    where: { id: booking.id },
+    data: { status: 'GUIDE_ASSIGNED' },
+    include: { guideAssignment: { include: { guide: true, vehicle: true } } },
+  })
+}
+
+export async function cancelBooking(params: { bookingId: string; userId: string; role: string }) {
+  const booking = await getBookingForUser(params)
+
+  if (booking.status === 'CANCELLED') {
+    throw new InvalidBookingStatusError('Booking is already cancelled')
+  }
+
+  return prisma.booking.update({
+    where: { id: booking.id },
+    data: { status: 'CANCELLED' },
+  })
+}
