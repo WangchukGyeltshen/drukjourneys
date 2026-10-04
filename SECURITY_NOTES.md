@@ -42,6 +42,19 @@ A running log of security-relevant decisions made during implementation: accepte
 
 ---
 
+## 2026-10-04 — Payment integration (Stripe): PCI scope, webhook verification, secret handling
+
+**Context:** Built Stripe payment processing for Sprint 5 (FR-18/19 — USD payments for international bookings, invoiced separately as package cost + SDF). Decisions made:
+
+- **Card data never touches our server** — we use Stripe's Payment Intents model: the server only creates a `PaymentIntent` and returns its `client_secret`; actual card entry and submission happens directly between the traveler's browser and Stripe (via Stripe Elements on the eventual frontend). This keeps the application out of PCI-DSS scope — no card number, CVV, or expiry ever passes through or is stored by our backend.
+- **Webhook signature verification is mandatory, not best-effort** — `POST /payments/webhook` reads the raw, unparsed request body (never `c.req.json()` first) and verifies it against `STRIPE_WEBHOOK_SECRET` via `stripe.webhooks.constructEvent()` before trusting any event. If the webhook secret isn't configured (e.g. local dev without the Stripe CLI), the route returns `501` rather than silently accepting unverified events — we deliberately do not fall back to trusting an unsigned payload.
+- **`STRIPE_SECRET_KEY` handling** — like `JWT_SECRET` and `DATABASE_URL`, written directly into `.env` without ever being echoed back in chat/logs; verified only by checking that the variable *name* is present, never its value.
+- **Dev-only sync endpoint (`POST /bookings/:id/payments/sync`)** — added because a webhook can't reach a developer's machine without a public URL. This is a deliberate, narrower-trust alternative to the webhook, not a replacement for it: it requires a logged-in user, enforces the same booking-ownership check as every other booking route, and actively calls Stripe's API to fetch the PaymentIntent's real status rather than trusting any client-supplied status value. **Must not ship to production** — the signed webhook is the only trusted status-update path once deployed; this is called out again as a TODO once a staging/production environment exists.
+
+**Follow-up:** Before any real deployment: (1) set up `STRIPE_WEBHOOK_SECRET` via the Stripe CLI or Stripe Dashboard and confirm the real webhook path end-to-end; (2) remove or gate off the dev-only `/payments/sync` endpoint behind a non-production environment check; (3) switch `sk_test_...`/webhook secret to live-mode keys only once the operator's real Stripe account is verified for live payments.
+
+---
+
 ## Conventions for future entries
 
 - Date each entry (UTC-agnostic, local date is fine).
