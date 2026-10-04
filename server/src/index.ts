@@ -10,6 +10,8 @@ import { authedPaymentRoutes, stripeWebhookRoutes } from './payment/routes.js'
 import { adminRoutes } from './admin/routes.js'
 import { guideRoutes, vehicleRoutes } from './fleet/routes.js'
 import { reportRoutes } from './reports/routes.js'
+import { faqRoutes, faqAdminRoutes } from './faq/routes.js'
+import { supportRoutes, supportAdminRoutes } from './support/routes.js'
 
 const app = new Hono()
 
@@ -34,6 +36,21 @@ app.route('/admin', adminRoutes)
 app.route('/guides', guideRoutes)
 app.route('/vehicles', vehicleRoutes)
 app.route('/reports', reportRoutes)
+app.route('/faq', faqRoutes)
+// Mounted at '/faq-admin', NOT '/admin/faq' — adminRoutes already
+// claims the '/admin' prefix with its own ADMIN-only middleware, and
+// nesting another router under it risks the same middleware-scope
+// mistake documented in SECURITY_NOTES.md (2026-10-04): a broader
+// prefix's middleware can intercept a more specific router's requests
+// before they ever reach that router's own, possibly different, access
+// rule. Safest fix is simply not nesting under a prefix another
+// router's middleware already owns.
+app.route('/faq-admin', faqAdminRoutes)
+app.route('/support/inquiries', supportRoutes)
+// Same reasoning: this allows AGENT or ADMIN, which is *broader* than
+// adminRoutes' ADMIN-only check — mounting it under '/admin' would risk
+// an Agent being wrongly rejected by the stricter, unrelated router.
+app.route('/support-inquiries', supportAdminRoutes)
 
 // Global error handler: catches anything not already caught inside a
 // route (malformed JSON bodies, unexpected database errors, etc.) and

@@ -250,3 +250,33 @@ model Review {
 
   @@map("reviews")
 }
+
+model FaqEntry {
+  id        String   @id @default(uuid())
+  category  String
+  question  String
+  answer    String
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("faq_entries")
+}
+
+enum SupportInquiryStatus {
+  OPEN
+  RESOLVED
+}
+
+model SupportInquiry {
+  id        String               @id @default(uuid())
+  name      String
+  email     String
+  message   String
+  status    SupportInquiryStatus @default(OPEN)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  @@map("support_inquiries")
+}
