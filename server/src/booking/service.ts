@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js'
 import { calculateSdf } from '../sdf/engine.js'
+import { sendNotification } from '../notification/service.js'
 import type { CreateBookingInput, CalculateBookingSdfInput, AssignGuideInput } from './schemas.js'
 import {
   PackageNotFoundError,
@@ -139,6 +140,20 @@ export async function calculateAndPersistSdf(params: {
     data: { status: 'SDF_CALCULATED' },
   })
 
+  // Fire-and-log — see sendNotification's own comment for why this
+  // can't fail the request even if the email itself fails.
+  await sendNotification({
+    userId: booking.userId,
+    bookingId: booking.id,
+    data: {
+      type: 'SDF_CALCULATED',
+      packageTitle: booking.package.title,
+      nights: result.nights,
+      totalSdf: Number(result.totalSdf),
+      currency: result.currency,
+    },
+  })
+
   return { booking: updatedBooking, sdfRecord }
 }
 
@@ -193,6 +208,17 @@ export async function assignGuide(params: { bookingId: string; input: AssignGuid
     }),
   ])
 
+  await sendNotification({
+    userId: booking.userId,
+    bookingId: booking.id,
+    data: {
+      type: 'GUIDE_ASSIGNED',
+      packageTitle: booking.package.title,
+      guideName: guide.name,
+      vehiclePlate: vehicle.plateNumber,
+    },
+  })
+
   return updatedBooking
 }
 
@@ -206,6 +232,18 @@ export async function cancelBooking(params: { bookingId: string; userId: string;
   // If a guide/vehicle had been assigned, cancelling the booking must
   // free them back up — otherwise they'd stay stuck ASSIGNED forever
   // with no booking actually using them.
+  const notify = () =>
+    sendNotification({
+      userId: booking.userId,
+      bookingId: booking.id,
+      data: {
+        type: 'BOOKING_CANCELLED',
+        packageTitle: booking.package.title,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+      },
+    })
+
   if (booking.guideAssignment) {
     const [, , updatedBooking] = await prisma.$transaction([
       prisma.guide.update({
@@ -218,11 +256,14 @@ export async function cancelBooking(params: { bookingId: string; userId: string;
       }),
       prisma.booking.update({ where: { id: booking.id }, data: { status: 'CANCELLED' } }),
     ])
+    await notify()
     return updatedBooking
   }
 
-  return prisma.booking.update({
+  const cancelledBooking = await prisma.booking.update({
     where: { id: booking.id },
     data: { status: 'CANCELLED' },
   })
+  await notify()
+  return cancelledBooking
 }
