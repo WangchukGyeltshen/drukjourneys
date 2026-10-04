@@ -125,6 +125,7 @@ model Booking {
 
   sdfRecord       SdfRecord?
   guideAssignment GuideAssignment?
+  payment         Payment?
 
   @@map("bookings")
 }
@@ -198,4 +199,30 @@ model GuideAssignment {
   assignedAt DateTime @default(now())
 
   @@map("guide_assignments")
+}
+
+enum PaymentMethod {
+  STRIPE
+  BANK_TRANSFER
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+model Payment {
+  id          String        @id @default(uuid())
+  bookingId   String        @unique
+  booking     Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  amount      Decimal       @db.Decimal(10, 2)
+  currency    String
+  method      PaymentMethod
+  status      PaymentStatus @default(PENDING)
+  providerRef String?       @unique
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("payments")
 }
