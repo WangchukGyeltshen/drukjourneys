@@ -12,6 +12,7 @@ import { guideRoutes, vehicleRoutes } from './fleet/routes.js'
 import { reportRoutes } from './reports/routes.js'
 import { faqRoutes, faqAdminRoutes } from './faq/routes.js'
 import { supportRoutes, supportAdminRoutes } from './support/routes.js'
+import { notificationRoutes } from './notification/routes.js'
 
 const app = new Hono()
 
@@ -51,6 +52,7 @@ app.route('/support/inquiries', supportRoutes)
 // adminRoutes' ADMIN-only check — mounting it under '/admin' would risk
 // an Agent being wrongly rejected by the stricter, unrelated router.
 app.route('/support-inquiries', supportAdminRoutes)
+app.route('/notifications', notificationRoutes)
 
 // Global error handler: catches anything not already caught inside a
 // route (malformed JSON bodies, unexpected database errors, etc.) and
