@@ -9,6 +9,7 @@ import { bookingRoutes } from './booking/routes.js'
 import { authedPaymentRoutes, stripeWebhookRoutes } from './payment/routes.js'
 import { adminRoutes } from './admin/routes.js'
 import { guideRoutes, vehicleRoutes } from './fleet/routes.js'
+import { reportRoutes } from './reports/routes.js'
 
 const app = new Hono()
 
@@ -32,6 +33,7 @@ app.route('/payments', stripeWebhookRoutes)
 app.route('/admin', adminRoutes)
 app.route('/guides', guideRoutes)
 app.route('/vehicles', vehicleRoutes)
+app.route('/reports', reportRoutes)
 
 // Global error handler: catches anything not already caught inside a
 // route (malformed JSON bodies, unexpected database errors, etc.) and
