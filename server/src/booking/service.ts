@@ -8,6 +8,8 @@ import {
   BookingAccessDeniedError,
   InvalidBookingStatusError,
   GuideOrVehicleNotFoundError,
+  GuideNotAvailableError,
+  VehicleNotAvailableError,
 } from './errors.js'
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24
@@ -158,23 +160,40 @@ export async function assignGuide(params: { bookingId: string; input: AssignGuid
     throw new GuideOrVehicleNotFoundError()
   }
 
-  // NOTE: this does not yet check whether the guide/vehicle is already
-  // assigned to an overlapping booking's dates — that conflict check is
-  // a known simplification for this sprint, flagged for a later pass
-  // once the agent console needs real scheduling logic.
-  await prisma.guideAssignment.create({
-    data: {
-      bookingId: booking.id,
-      guideId: guide.id,
-      vehicleId: vehicle.id,
-    },
-  })
+  // Availability is tracked via a simple status flag rather than real
+  // date-overlap scheduling — still a known simplification (flagged
+  // originally in this function), but now at least prevents double-
+  // booking the same guide/vehicle to two bookings at once, which a
+  // plain status check catches even without full calendar logic.
+  if (guide.status !== 'AVAILABLE') {
+    throw new GuideNotAvailableError()
+  }
+  if (vehicle.status !== 'AVAILABLE') {
+    throw new VehicleNotAvailableError()
+  }
 
-  return prisma.booking.update({
-    where: { id: booking.id },
-    data: { status: 'GUIDE_ASSIGNED' },
-    include: { guideAssignment: { include: { guide: true, vehicle: true } } },
-  })
+  // All four writes must succeed or fail together — if the process died
+  // between, say, marking the guide ASSIGNED and creating the
+  // GuideAssignment record, the guide would be stuck unavailable with
+  // nothing actually assigned to them.
+  const [, , , updatedBooking] = await prisma.$transaction([
+    prisma.guide.update({ where: { id: guide.id }, data: { status: 'ASSIGNED' } }),
+    prisma.vehicle.update({ where: { id: vehicle.id }, data: { status: 'ASSIGNED' } }),
+    prisma.guideAssignment.create({
+      data: {
+        bookingId: booking.id,
+        guideId: guide.id,
+        vehicleId: vehicle.id,
+      },
+    }),
+    prisma.booking.update({
+      where: { id: booking.id },
+      data: { status: 'GUIDE_ASSIGNED' },
+      include: { guideAssignment: { include: { guide: true, vehicle: true } } },
+    }),
+  ])
+
+  return updatedBooking
 }
 
 export async function cancelBooking(params: { bookingId: string; userId: string; role: string }) {
@@ -182,6 +201,24 @@ export async function cancelBooking(params: { bookingId: string; userId: string;
 
   if (booking.status === 'CANCELLED') {
     throw new InvalidBookingStatusError('Booking is already cancelled')
+  }
+
+  // If a guide/vehicle had been assigned, cancelling the booking must
+  // free them back up — otherwise they'd stay stuck ASSIGNED forever
+  // with no booking actually using them.
+  if (booking.guideAssignment) {
+    const [, , updatedBooking] = await prisma.$transaction([
+      prisma.guide.update({
+        where: { id: booking.guideAssignment.guideId },
+        data: { status: 'AVAILABLE' },
+      }),
+      prisma.vehicle.update({
+        where: { id: booking.guideAssignment.vehicleId },
+        data: { status: 'AVAILABLE' },
+      }),
+      prisma.booking.update({ where: { id: booking.id }, data: { status: 'CANCELLED' } }),
+    ])
+    return updatedBooking
   }
 
   return prisma.booking.update({

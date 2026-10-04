@@ -39,3 +39,17 @@ export class GuideOrVehicleNotFoundError extends Error {
     this.name = 'GuideOrVehicleNotFoundError'
   }
 }
+
+export class GuideNotAvailableError extends Error {
+  constructor() {
+    super('This guide is already assigned to another active booking')
+    this.name = 'GuideNotAvailableError'
+  }
+}
+
+export class VehicleNotAvailableError extends Error {
+  constructor() {
+    super('This vehicle is already assigned to another active booking')
+    this.name = 'VehicleNotAvailableError'
+  }
+}

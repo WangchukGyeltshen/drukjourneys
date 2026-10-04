@@ -16,6 +16,8 @@ import {
   BookingAccessDeniedError,
   InvalidBookingStatusError,
   GuideOrVehicleNotFoundError,
+  GuideNotAvailableError,
+  VehicleNotAvailableError,
 } from './errors.js'
 import { requireAuth, requireRole, type AuthVariables } from '../lib/auth-middleware.js'
 
@@ -149,7 +151,11 @@ bookingRoutes.patch('/:id/assign-guide', requireRole('AGENT', 'ADMIN'), async (c
     if (err instanceof BookingNotFoundError || err instanceof GuideOrVehicleNotFoundError) {
       return c.json({ error: err.message }, 404)
     }
-    if (err instanceof InvalidBookingStatusError) {
+    if (
+      err instanceof InvalidBookingStatusError ||
+      err instanceof GuideNotAvailableError ||
+      err instanceof VehicleNotAvailableError
+    ) {
       return c.json({ error: err.message }, 409)
     }
     throw err
