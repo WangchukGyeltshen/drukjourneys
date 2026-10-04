@@ -21,3 +21,10 @@ export class PaymentAlreadyExistsError extends Error {
     this.name = 'PaymentAlreadyExistsError'
   }
 }
+
+export class InvoiceNotAvailableError extends Error {
+  constructor() {
+    super("An invoice is only available once this booking's SDF has been calculated")
+    this.name = 'InvoiceNotAvailableError'
+  }
+}

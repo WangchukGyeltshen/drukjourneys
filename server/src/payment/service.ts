@@ -4,6 +4,7 @@ import {
   InvalidBookingStatusForPaymentError,
   UnsupportedCurrencyForStripeError,
   PaymentAlreadyExistsError,
+  InvoiceNotAvailableError,
 } from './errors.js'
 import { BookingNotFoundError, BookingAccessDeniedError } from '../booking/errors.js'
 
@@ -126,4 +127,64 @@ export async function applyPaymentIntentFailed(paymentIntentId: string) {
   if (!payment) return
 
   await prisma.payment.update({ where: { id: payment.id }, data: { status: 'FAILED' } })
+}
+
+
+// Unlike getOwnedBookingWithRelations (used for starting/checking a
+// payment, which is intentionally owner-only — an agent should not be
+// able to pay on a traveler's behalf), an invoice is read-only
+// information that staff legitimately need to pull up on a traveler's
+// behalf, so this follows the same owner-or-staff pattern used
+// elsewhere in the booking module.
+export async function getInvoiceForBooking(params: { bookingId: string; userId: string; role: string }) {
+  const booking = await prisma.booking.findUnique({
+    where: { id: params.bookingId },
+    include: { package: true, sdfRecord: true, payment: true },
+  })
+  if (!booking) {
+    throw new BookingNotFoundError()
+  }
+
+  const isOwner = booking.userId === params.userId
+  const isStaff = params.role === 'AGENT' || params.role === 'ADMIN'
+  if (!isOwner && !isStaff) {
+    throw new BookingAccessDeniedError()
+  }
+
+  // An invoice needs the SDF line item, which doesn't exist until the
+  // booking has passed through SDF_CALCULATED.
+  if (!booking.sdfRecord) {
+    throw new InvoiceNotAvailableError()
+  }
+
+  const packageLineItem = {
+    description: `Package: ${booking.package.title}`,
+    amount: booking.package.basePrice,
+    currency: booking.package.currency,
+  }
+  const sdfLineItem = {
+    description: 'Sustainable Development Fee (SDF)',
+    amount: booking.sdfRecord.totalSdf,
+    currency: booking.sdfRecord.currency,
+  }
+
+  // Amounts are Prisma Decimal values — Number() here is safe for
+  // display/arithmetic purposes (these are small, bounded currency
+  // amounts, not values where float precision could matter at scale).
+  const total = Number(packageLineItem.amount) + Number(sdfLineItem.amount)
+
+  return {
+    bookingId: booking.id,
+    bookingStatus: booking.status,
+    lineItems: [packageLineItem, sdfLineItem],
+    total,
+    currency: packageLineItem.currency,
+    payment: booking.payment
+      ? {
+          status: booking.payment.status,
+          method: booking.payment.method,
+          paidAt: booking.payment.status === 'SUCCEEDED' ? booking.payment.updatedAt : null,
+        }
+      : null,
+  }
 }

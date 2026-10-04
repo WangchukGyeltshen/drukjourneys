@@ -5,11 +5,13 @@ import {
   syncPaymentStatus,
   applyPaymentIntentSucceeded,
   applyPaymentIntentFailed,
+  getInvoiceForBooking,
 } from './service.js'
 import {
   InvalidBookingStatusForPaymentError,
   UnsupportedCurrencyForStripeError,
   PaymentAlreadyExistsError,
+  InvoiceNotAvailableError,
 } from './errors.js'
 import { BookingNotFoundError, BookingAccessDeniedError } from '../booking/errors.js'
 import { requireAuth, type AuthVariables } from '../lib/auth-middleware.js'
@@ -26,6 +28,9 @@ function handleSharedErrors(err: unknown, c: Context) {
     err instanceof UnsupportedCurrencyForStripeError ||
     err instanceof PaymentAlreadyExistsError
   ) {
+    return c.json({ error: err.message }, 409)
+  }
+  if (err instanceof InvoiceNotAvailableError) {
     return c.json({ error: err.message }, 409)
   }
   return null
@@ -62,6 +67,20 @@ authedPaymentRoutes.post('/:id/payments/sync', async (c) => {
   try {
     const { payment, booking } = await syncPaymentStatus({ bookingId: id, userId: user.sub })
     return c.json({ payment, booking })
+  } catch (err) {
+    const handled = handleSharedErrors(err, c)
+    if (handled) return handled
+    throw err
+  }
+})
+
+authedPaymentRoutes.get('/:id/invoice', async (c) => {
+  const user = c.get('user')
+  const id = c.req.param('id')
+
+  try {
+    const invoice = await getInvoiceForBooking({ bookingId: id, userId: user.sub, role: user.role })
+    return c.json({ invoice })
   } catch (err) {
     const handled = handleSharedErrors(err, c)
     if (handled) return handled
