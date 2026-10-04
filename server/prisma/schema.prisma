@@ -30,6 +30,7 @@ model User {
   documents     Document[]
   bookings      Booking[]
   reviews       Review[]
+  notifications Notification[]
 
   @@map("users")
 }
@@ -279,4 +280,32 @@ model SupportInquiry {
   updatedAt DateTime             @updatedAt
 
   @@map("support_inquiries")
+}
+
+enum NotificationType {
+  SDF_CALCULATED
+  GUIDE_ASSIGNED
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+}
+
+enum NotificationStatus {
+  SENT
+  FAILED
+}
+
+model Notification {
+  id               String             @id @default(uuid())
+  userId           String
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookingId        String?
+  type             NotificationType
+  channel          String             @default("EMAIL")
+  recipientAddress String
+  subject          String
+  status           NotificationStatus
+  errorMessage     String?
+  createdAt        DateTime           @default(now())
+
+  @@map("notifications")
 }
