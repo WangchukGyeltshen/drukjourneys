@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js'
+import type { Pagination } from '../lib/pagination.js'
 import { SupportInquiryNotFoundError } from './errors.js'
 import type { CreateSupportInquiryInput, UpdateSupportInquiryStatusInput } from './schemas.js'
 
@@ -10,8 +11,16 @@ export async function createSupportInquiry(input: CreateSupportInquiryInput) {
   return prisma.supportInquiry.create({ data: input })
 }
 
-export async function listSupportInquiries() {
-  return prisma.supportInquiry.findMany({ orderBy: { createdAt: 'desc' } })
+export async function listSupportInquiries(pagination: Pagination) {
+  const [items, total] = await Promise.all([
+    prisma.supportInquiry.findMany({
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    prisma.supportInquiry.count(),
+  ])
+  return { items, total }
 }
 
 export async function updateSupportInquiryStatus(id: string, input: UpdateSupportInquiryStatusInput) {

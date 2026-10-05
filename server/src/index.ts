@@ -2,6 +2,7 @@ import 'dotenv/config'
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { secureHeaders } from 'hono/secure-headers'
+import { compress } from 'hono/compress'
 import { authRoutes } from './auth/routes.js'
 import { packageRoutes } from './package/routes.js'
 import { sdfRoutes } from './sdf/routes.js'
@@ -20,6 +21,10 @@ const app = new Hono()
 // Standard security response headers (X-Content-Type-Options: nosniff,
 // X-Frame-Options, Strict-Transport-Security, etc.) on every response.
 app.use('*', secureHeaders())
+
+// gzip/deflate for JSON responses over 1 KB (NFR-9: low-bandwidth admin
+// use). Already-compressed types such as PNG/JPEG downloads are skipped.
+app.use('*', compress())
 
 app.get('/', (c) => {
   return c.json({ message: 'DrukJourneys API is running' })

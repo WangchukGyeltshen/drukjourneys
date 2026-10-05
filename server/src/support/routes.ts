@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { parsePagination, paginationMeta } from '../lib/pagination.js'
 import { createSupportInquirySchema, updateSupportInquiryStatusSchema } from './schemas.js'
 import { createSupportInquiry, listSupportInquiries, updateSupportInquiryStatus } from './service.js'
 import { SupportInquiryNotFoundError } from './errors.js'
@@ -35,8 +36,12 @@ export const supportAdminRoutes = new Hono<{ Variables: AuthVariables }>()
 supportAdminRoutes.use('*', requireAuth, requireRole('AGENT', 'ADMIN'))
 
 supportAdminRoutes.get('/', async (c) => {
-  const inquiries = await listSupportInquiries()
-  return c.json({ inquiries })
+  const parsed = parsePagination(c.req.query())
+  if (!parsed.ok) {
+    return c.json({ error: 'Validation failed', details: parsed.details }, 400)
+  }
+  const { items, total } = await listSupportInquiries(parsed.pagination)
+  return c.json({ inquiries: items, pagination: paginationMeta(total, parsed.pagination) })
 })
 
 supportAdminRoutes.patch('/:id/status', async (c) => {

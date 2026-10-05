@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js'
+import type { Pagination } from '../lib/pagination.js'
 import { UserNotFoundError, CannotModifyOwnRoleError } from './errors.js'
 import type { UpdateUserRoleInput } from './schemas.js'
 
@@ -16,11 +17,17 @@ const SAFE_USER_FIELDS = {
   updatedAt: true,
 } as const
 
-export async function listUsers() {
-  return prisma.user.findMany({
-    select: SAFE_USER_FIELDS,
-    orderBy: { createdAt: 'desc' },
-  })
+export async function listUsers(pagination: Pagination) {
+  const [items, total] = await Promise.all([
+    prisma.user.findMany({
+      select: SAFE_USER_FIELDS,
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], // id breaks ties so pages never overlap
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    prisma.user.count(),
+  ])
+  return { items, total }
 }
 
 export async function updateUserRole(params: {

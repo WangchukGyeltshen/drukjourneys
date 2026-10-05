@@ -1,20 +1,28 @@
 import { prisma } from '../lib/prisma.js'
+import type { Pagination } from '../lib/pagination.js'
 import type { ListPackagesQuery } from './schemas.js'
 
-export async function listPackages(query: ListPackagesQuery) {
-  return prisma.package.findMany({
-    where: {
-      // Only ever show active packages to the public browse endpoint —
-      // an admin "soft-deleting" a package by setting isActive: false
-      // should make it disappear here without touching past bookings.
-      isActive: true,
-      ...(query.dzongkhag ? { dzongkhag: query.dzongkhag } : {}),
-      ...(query.category ? { category: query.category } : {}),
-      ...(query.maxDurationDays ? { durationDays: { lte: query.maxDurationDays } } : {}),
-      ...(query.maxPrice ? { basePrice: { lte: query.maxPrice } } : {}),
-    },
-    orderBy: { createdAt: 'desc' },
-  })
+export async function listPackages(query: ListPackagesQuery, pagination: Pagination) {
+  const where = {
+    // Only ever show active packages to the public browse endpoint —
+    // an admin "soft-deleting" a package by setting isActive: false
+    // should make it disappear here without touching past bookings.
+    isActive: true,
+    ...(query.dzongkhag ? { dzongkhag: query.dzongkhag } : {}),
+    ...(query.category ? { category: query.category } : {}),
+    ...(query.maxDurationDays ? { durationDays: { lte: query.maxDurationDays } } : {}),
+    ...(query.maxPrice ? { basePrice: { lte: query.maxPrice } } : {}),
+  }
+  const [items, total] = await Promise.all([
+    prisma.package.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    prisma.package.count({ where }),
+  ])
+  return { items, total }
 }
 
 export async function getPackageById(id: string) {

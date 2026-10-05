@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { parsePagination, paginationMeta } from '../lib/pagination.js'
 import { updateUserRoleSchema } from './schemas.js'
 import { listUsers, updateUserRole } from './service.js'
 import { UserNotFoundError, CannotModifyOwnRoleError } from './errors.js'
@@ -12,8 +13,12 @@ export const adminRoutes = new Hono<{ Variables: AuthVariables }>()
 adminRoutes.use('*', requireAuth, requireRole('ADMIN'))
 
 adminRoutes.get('/users', async (c) => {
-  const users = await listUsers()
-  return c.json({ users })
+  const parsed = parsePagination(c.req.query())
+  if (!parsed.ok) {
+    return c.json({ error: 'Validation failed', details: parsed.details }, 400)
+  }
+  const { items, total } = await listUsers(parsed.pagination)
+  return c.json({ users: items, pagination: paginationMeta(total, parsed.pagination) })
 })
 
 adminRoutes.patch('/users/:id/role', async (c) => {

@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { parsePagination, paginationMeta } from '../lib/pagination.js'
 import { listPackagesQuerySchema } from './schemas.js'
 import { listPackages, getPackageById } from './service.js'
 import { listReviewsForPackage } from '../review/service.js'
@@ -16,8 +17,12 @@ packageRoutes.get('/', async (c) => {
     )
   }
 
-  const packages = await listPackages(result.data)
-  return c.json({ packages })
+  const parsed = parsePagination(c.req.query())
+  if (!parsed.ok) {
+    return c.json({ error: 'Validation failed', details: parsed.details }, 400)
+  }
+  const { items, total } = await listPackages(result.data, parsed.pagination)
+  return c.json({ packages: items, pagination: paginationMeta(total, parsed.pagination) })
 })
 
 packageRoutes.get('/:id', async (c) => {

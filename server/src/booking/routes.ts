@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { parsePagination, paginationMeta } from '../lib/pagination.js'
 import { createBookingSchema, calculateBookingSdfSchema, assignGuideSchema } from './schemas.js'
 import { createReviewSchema, updateReviewSchema } from '../review/schemas.js'
 import {
@@ -65,8 +66,14 @@ bookingRoutes.post('/', async (c) => {
 bookingRoutes.get('/', async (c) => {
   const user = c.get('user')
   const isStaff = user.role === 'AGENT' || user.role === 'ADMIN'
-  const bookings = isStaff ? await listAllBookings() : await listBookingsForUser(user.sub)
-  return c.json({ bookings })
+  const parsed = parsePagination(c.req.query())
+  if (!parsed.ok) {
+    return c.json({ error: 'Validation failed', details: parsed.details }, 400)
+  }
+  const { items, total } = isStaff
+    ? await listAllBookings(parsed.pagination)
+    : await listBookingsForUser(user.sub, parsed.pagination)
+  return c.json({ bookings: items, pagination: paginationMeta(total, parsed.pagination) })
 })
 
 bookingRoutes.get('/:id', async (c) => {

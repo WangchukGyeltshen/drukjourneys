@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js'
+import type { Pagination } from '../lib/pagination.js'
 import { generateStorageKey, saveFile, readStoredFile } from '../lib/storage.js'
 import {
   isAllowedMimeType,
@@ -56,11 +57,18 @@ export async function uploadDocument(params: {
   })
 }
 
-export async function listDocumentsForUser(userId: string) {
-  return prisma.document.findMany({
-    where: { userId },
-    orderBy: { uploadedAt: 'desc' },
-  })
+export async function listDocumentsForUser(userId: string, pagination: Pagination) {
+  const where = { userId }
+  const [items, total] = await Promise.all([
+    prisma.document.findMany({
+      where,
+      orderBy: [{ uploadedAt: 'desc' }, { id: 'asc' }],
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    prisma.document.count({ where }),
+  ])
+  return { items, total }
 }
 
 // Owner-or-staff access: a document is readable by the traveler who
@@ -92,12 +100,19 @@ export async function getDocumentFileForUser(params: {
 
 // Staff-only listing across all travelers, optionally filtered by status
 // (for example, everything still PENDING). Includes who uploaded it.
-export async function listAllDocuments(status?: DocumentStatus) {
-  return prisma.document.findMany({
-    where: status ? { status } : undefined,
-    orderBy: { uploadedAt: 'desc' },
-    include: { user: { select: { id: true, email: true, fullName: true } } },
-  })
+export async function listAllDocuments(status: DocumentStatus | undefined, pagination: Pagination) {
+  const where = status ? { status } : undefined
+  const [items, total] = await Promise.all([
+    prisma.document.findMany({
+      where,
+      orderBy: [{ uploadedAt: 'desc' }, { id: 'asc' }],
+      include: { user: { select: { id: true, email: true, fullName: true } } },
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    prisma.document.count({ where }),
+  ])
+  return { items, total }
 }
 
 export async function reviewDocument(params: {

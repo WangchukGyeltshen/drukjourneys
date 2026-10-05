@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { parsePagination, paginationMeta } from '../lib/pagination.js'
 import { docTypeSchema, documentStatusFilterSchema, reviewDocumentSchema } from './schemas.js'
 import {
   uploadDocument,
@@ -63,8 +64,12 @@ documentRoutes.post('/', async (c) => {
 
 documentRoutes.get('/', async (c) => {
   const user = c.get('user')
-  const documents = await listDocumentsForUser(user.sub)
-  return c.json({ documents })
+  const parsed = parsePagination(c.req.query())
+  if (!parsed.ok) {
+    return c.json({ error: 'Validation failed', details: parsed.details }, 400)
+  }
+  const { items, total } = await listDocumentsForUser(user.sub, parsed.pagination)
+  return c.json({ documents: items, pagination: paginationMeta(total, parsed.pagination) })
 })
 
 // Staff-only: every traveler's documents, optionally ?status=PENDING etc.
@@ -80,8 +85,12 @@ documentRoutes.get('/all', requireRole('AGENT', 'ADMIN'), async (c) => {
     }
     status = parsed.data
   }
-  const documents = await listAllDocuments(status)
-  return c.json({ documents })
+  const parsed = parsePagination(c.req.query())
+  if (!parsed.ok) {
+    return c.json({ error: 'Validation failed', details: parsed.details }, 400)
+  }
+  const { items, total } = await listAllDocuments(status, parsed.pagination)
+  return c.json({ documents: items, pagination: paginationMeta(total, parsed.pagination) })
 })
 
 documentRoutes.get('/:id/download', async (c) => {

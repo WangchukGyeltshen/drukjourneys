@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js'
+import type { Pagination } from '../lib/pagination.js'
 import { sendEmail } from '../lib/email.js'
 import { renderTemplate, type NotificationData } from './templates.js'
 
@@ -51,9 +52,14 @@ export async function sendNotification(params: {
   }
 }
 
-export async function listNotifications() {
-  return prisma.notification.findMany({
-    orderBy: { createdAt: 'desc' },
-    take: 200,
-  })
+export async function listNotifications(pagination: Pagination) {
+  const [items, total] = await Promise.all([
+    prisma.notification.findMany({
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    prisma.notification.count(),
+  ])
+  return { items, total }
 }

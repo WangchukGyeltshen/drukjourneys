@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js'
+import type { Pagination } from '../lib/pagination.js'
 import { calculateSdf } from '../sdf/engine.js'
 import { sendNotification } from '../notification/service.js'
 import type { CreateBookingInput, CalculateBookingSdfInput, AssignGuideInput } from './schemas.js'
@@ -45,19 +46,26 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
 
 // Tourists see only their own bookings; Agents/Admins see everything.
 // The caller decides which to run based on the authenticated user's role.
-export async function listBookingsForUser(userId: string) {
-  return prisma.booking.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' },
-    include: { package: true, sdfRecord: true, guideAssignment: true },
-  })
+async function findBookingsPage(where: { userId: string } | undefined, pagination: Pagination) {
+  const [items, total] = await Promise.all([
+    prisma.booking.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], // id breaks ties so pages never overlap
+      include: { package: true, sdfRecord: true, guideAssignment: true },
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    prisma.booking.count({ where }),
+  ])
+  return { items, total }
 }
 
-export async function listAllBookings() {
-  return prisma.booking.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: { package: true, sdfRecord: true, guideAssignment: true },
-  })
+export async function listBookingsForUser(userId: string, pagination: Pagination) {
+  return findBookingsPage({ userId }, pagination)
+}
+
+export async function listAllBookings(pagination: Pagination) {
+  return findBookingsPage(undefined, pagination)
 }
 
 async function getBookingOrThrow(bookingId: string) {
