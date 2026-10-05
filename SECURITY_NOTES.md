@@ -40,6 +40,8 @@ A running log of security-relevant decisions made during implementation: accepte
 
 **Follow-up:** Before deploying anywhere beyond local development, replace `src/lib/storage.ts` with an S3-compatible implementation using server-side encryption, and confirm `uploads/` is never included in any deployment artifact or backup taken off the dev machine.
 
+**Update (2026-10-05):** Encryption at rest, magic-byte validation and staff access were implemented; see the 2026-10-05 entry below. Swapping to real object storage is still open.
+
 ---
 
 ## 2026-10-04 — Payment integration (Stripe): PCI scope, webhook verification, secret handling
@@ -68,6 +70,32 @@ A running log of security-relevant decisions made during implementation: accepte
 **Verified:** Full round trip tested with the Stripe CLI — `stripe listen` forwarded a real `payment_intent.succeeded` event, the webhook responded `200` (previously `401`), and the booking's status flipped to `CONFIRMED` in the database without calling the dev-only `/sync` endpoint at all.
 
 **Follow-up:** When adding any new authenticated sub-router in the future, mount it at the narrowest path prefix that's actually correct for it, never at `/`, and specifically double-check that doing so doesn't shadow any route meant to be public (webhooks, health checks, etc.). Worth a quick audit of `index.ts`'s other `app.route()` calls to confirm none of them have the same issue — they don't appear to (none of the others are mounted at `/`), but this is the kind of bug worth re-checking after any future route restructuring.
+
+---
+
+## 2026-10-05: Document hardening for NFR-6 (encryption at rest, content validation, staff access)
+
+**Context:** Sprint 8 review of NFR-6 (passport and ID data encrypted at rest and restricted to authorized staff) found two gaps in the Sprint 3 document module: files were stored as plaintext on disk, and no staff path existed at all (only the owner could read a document, so nobody could verify one). Upload validation also trusted the client-declared MIME type: a PNG labeled `application/pdf` was accepted.
+
+**Decisions:**
+
+- **Application-level AES-256-GCM in the storage layer.** `src/lib/crypto.ts` encrypts every file inside `saveFile` and decrypts it inside `readStoredFile`, so `document/service.ts` and the routes are unaware of it. Stored layout is IV (12 bytes) | auth tag (16 bytes) | ciphertext, with a fresh random IV per file. GCM also authenticates, so a modified file fails to decrypt rather than being served. Chosen over relying on disk or database encryption because it works on local disk today and carries over unchanged to object storage later.
+- **Key handling.** `DOCUMENT_ENCRYPTION_KEY` (32 random bytes, base64) lives in `.env`, which is gitignored. The server refuses to start if it is missing or the wrong length, matching the JWT and Gmail secrets. The dev key must never be reused in production.
+- **Magic-byte validation.** Uploads are now checked against the file's real leading bytes (PDF, PNG, JPEG signatures). A declared type that disagrees with the contents is rejected with `400`. The stored `mimeType` is the detected type, not the claimed one.
+- **Owner-or-staff access.** Documents are readable by their owner or by an Agent/Admin (same pattern as invoices). Staff also get `GET /documents/all` (optional `?status=`) and `PATCH /documents/:id/status`, which can set `APPROVED` or `REJECTED` only. Travelers cannot change a document's status.
+
+**Also fixed in passing:** `requireRole` is now built with Hono's `createMiddleware`, which restores route path-param types after it (this cleared the long-standing `string | undefined` error in `booking/routes.ts`). `jwt.ts` now binds the checked secret to an explicit `string`. `npx tsc --noEmit` reports zero errors.
+
+**Verified (live):** the stored file is exactly original size + 28 bytes, does not begin with the PNG signature, and contains no PNG markers; a download returned a byte-identical file (matching SHA-256); a PNG labeled as PDF returned `400`; another tourist got `403` on download; a tourist got `403` trying to approve their own document; an agent could list, download and approve (`200`); `requireRole` still returns `200` for staff and `403` for tourists on `/support-inquiries`.
+
+**Known gaps and follow-up (deferred):**
+
+- Staff views and approvals are not audit-logged (who opened which passport, and when). Worth adding before real use.
+- No key rotation. The stored format carries no key id, so rotating means re-encrypting every file. Losing the key makes all stored documents unrecoverable, so it must be backed up separately from the data. In production it belongs in a secrets manager or KMS.
+- Only file contents are encrypted. Filenames and document metadata are plaintext in the database, and other personal fields on `User` are not field-encrypted; database encryption at rest is a deployment concern.
+- Files uploaded before today (for example `uploads/a64decf2...pdf`) are plaintext and will fail to download. They are test data and should be deleted.
+- Storage is still local disk. When swapping to object storage, keep the encrypt and decrypt calls (or use server-side encryption).
+- There is no document delete endpoint or retention policy.
 
 ---
 

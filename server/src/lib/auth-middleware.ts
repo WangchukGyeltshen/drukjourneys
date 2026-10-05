@@ -1,4 +1,5 @@
 import type { Context, Next } from 'hono'
+import { createMiddleware } from 'hono/factory'
 import { verifyAccessToken, type TokenPayload } from './jwt.js'
 
 // Makes `c.get('user')` and `c.set('user', ...)` type-safe elsewhere in
@@ -34,11 +35,14 @@ export async function requireAuth(c: Context<{ Variables: AuthVariables }>, next
 // it returns a middleware configured for that check. Must run AFTER
 // requireAuth, since it depends on c.get('user') already being set.
 export function requireRole(...allowedRoles: string[]) {
-  return async (c: Context<{ Variables: AuthVariables }>, next: Next) => {
+  // createMiddleware (rather than a bare function typed with Context) lets
+  // Hono keep each route's path-param types, so handlers placed after this
+  // can read c.req.param('id') as a string instead of string | undefined.
+  return createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
     const user = c.get('user')
     if (!allowedRoles.includes(user.role)) {
       return c.json({ error: 'You do not have permission to perform this action' }, 403)
     }
     await next()
-  }
+  })
 }

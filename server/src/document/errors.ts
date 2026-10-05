@@ -25,3 +25,10 @@ export class DocumentAccessDeniedError extends Error {
     this.name = 'DocumentAccessDeniedError'
   }
 }
+
+export class FileContentMismatchError extends Error {
+  constructor() {
+    super('File contents do not match the declared file type')
+    this.name = 'FileContentMismatchError'
+  }
+}

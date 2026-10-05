@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, writeFile, readFile, unlink } from 'node:fs/promises'
 import path from 'node:path'
+import { encryptBuffer, decryptBuffer } from './crypto.js'
 
 // Local-disk implementation of document storage, for development only.
 // Deliberately isolated behind these three functions so that swapping
@@ -25,12 +26,13 @@ export function generateStorageKey(extension: string): string {
 export async function saveFile(storageKey: string, data: Buffer): Promise<void> {
   await ensureUploadsDir()
   const filePath = path.join(UPLOADS_DIR, storageKey)
-  await writeFile(filePath, data)
+  // Encrypted before it touches disk (NFR-6): only ciphertext is ever stored.
+  await writeFile(filePath, encryptBuffer(data))
 }
 
 export async function readStoredFile(storageKey: string): Promise<Buffer> {
   const filePath = path.join(UPLOADS_DIR, storageKey)
-  return readFile(filePath)
+  return decryptBuffer(await readFile(filePath))
 }
 
 export async function deleteStoredFile(storageKey: string): Promise<void> {

@@ -1,10 +1,14 @@
 import { sign, verify } from 'hono/jwt'
 
-const JWT_SECRET = process.env.JWT_SECRET
+const rawSecret = process.env.JWT_SECRET
 
-if (!JWT_SECRET) {
+if (!rawSecret) {
   throw new Error('JWT_SECRET is not set — check your .env file')
 }
+
+// Re-bound with an explicit string type: TypeScript does not carry the
+// check above into the function declarations below.
+const JWT_SECRET: string = rawSecret
 
 // What we store inside every token. Keeping this small and specific:
 // enough to authorize a request without hitting the database every time,
