@@ -11,7 +11,9 @@ if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
 // reconnecting per email — same reasoning as the single shared `prisma`
 // client in lib/prisma.ts.
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true, // implicit TLS: the whole connection is encrypted from the start
   auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
 })
 
