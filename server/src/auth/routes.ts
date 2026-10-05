@@ -15,8 +15,15 @@ import {
   InvalidRefreshTokenError,
 } from './errors.js'
 import { requireAuth, type AuthVariables } from '../lib/auth-middleware.js'
+import { rateLimit } from '../lib/rate-limit.js'
 
 export const authRoutes = new Hono<{ Variables: AuthVariables }>()
+
+// Brute-force protection (per client IP). Login is the main target for
+// password guessing; register is limited to slow down mass account creation.
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 })
+const registerLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10 })
+const refreshLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30 })
 
 async function parseJsonBody(c: { req: { json: () => Promise<unknown> } }) {
   try {
@@ -26,7 +33,7 @@ async function parseJsonBody(c: { req: { json: () => Promise<unknown> } }) {
   }
 }
 
-authRoutes.post('/register', async (c) => {
+authRoutes.post('/register', registerLimiter, async (c) => {
   const parsed = await parseJsonBody(c)
   if (!parsed.ok) {
     return c.json({ error: 'Request body must be valid JSON' }, 400)
@@ -53,7 +60,7 @@ authRoutes.post('/register', async (c) => {
   }
 })
 
-authRoutes.post('/login', async (c) => {
+authRoutes.post('/login', loginLimiter, async (c) => {
   const parsed = await parseJsonBody(c)
   if (!parsed.ok) {
     return c.json({ error: 'Request body must be valid JSON' }, 400)
@@ -80,7 +87,7 @@ authRoutes.post('/login', async (c) => {
   }
 })
 
-authRoutes.post('/refresh', async (c) => {
+authRoutes.post('/refresh', refreshLimiter, async (c) => {
   const parsed = await parseJsonBody(c)
   if (!parsed.ok) {
     return c.json({ error: 'Request body must be valid JSON' }, 400)

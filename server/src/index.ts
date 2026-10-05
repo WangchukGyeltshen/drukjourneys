@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
+import { secureHeaders } from 'hono/secure-headers'
 import { authRoutes } from './auth/routes.js'
 import { packageRoutes } from './package/routes.js'
 import { sdfRoutes } from './sdf/routes.js'
@@ -15,6 +16,10 @@ import { supportRoutes, supportAdminRoutes } from './support/routes.js'
 import { notificationRoutes } from './notification/routes.js'
 
 const app = new Hono()
+
+// Standard security response headers (X-Content-Type-Options: nosniff,
+// X-Frame-Options, Strict-Transport-Security, etc.) on every response.
+app.use('*', secureHeaders())
 
 app.get('/', (c) => {
   return c.json({ message: 'DrukJourneys API is running' })

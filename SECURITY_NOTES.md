@@ -99,6 +99,30 @@ A running log of security-relevant decisions made during implementation: accepte
 
 ---
 
+## 2026-10-05: Rate limiting on auth endpoints and security response headers
+
+**Context:** Sprint 8 hardening. Login had no protection against password guessing, and responses carried no security headers.
+
+**Decisions:**
+
+- **Per-IP rate limits on auth endpoints** (`src/lib/rate-limit.ts`): `/auth/login` 10 per 15 minutes, `/auth/register` 10 per hour, `/auth/refresh` 30 per 15 minutes. Over the limit returns `429` with a `Retry-After` header. `/auth/logout` and `/auth/me` are not limited.
+- **Client key is the socket's remote address, not `X-Forwarded-For`.** A client can set that header to any value, which would let an attacker dodge the limit by rotating fake IPs.
+- **No new dependency.** The limiter is a small in-memory fixed-window counter with a periodic sweep of expired entries, so memory cannot grow without bound.
+- **`secureHeaders()` (Hono built-in) on every response:** `X-Content-Type-Options: nosniff` (also relevant to document downloads), `X-Frame-Options`, `Strict-Transport-Security`, `Referrer-Policy`, and related headers.
+
+**Verified (live):** 12 wrong-password logins in a row returned ten `401`s and then `429` with `Retry-After: 895`; the response headers included `x-content-type-options: nosniff`, `x-frame-options: SAMEORIGIN` and `strict-transport-security`.
+
+**Known limits and follow-up (deferred):**
+
+- Counters live in process memory: they reset on restart and are not shared across multiple server instances. A multi-instance deployment needs a shared store such as Redis.
+- Behind a reverse proxy, every request would appear to come from the proxy's IP, so a trusted-proxy setting is needed at deployment time or all users would share one budget.
+- The limit is per IP only. Many users behind one shared IP share a budget, and an attacker with many IPs is not slowed. A per-account failed-login lockout would be a stronger addition.
+- A fixed window allows a short burst of up to double the limit across a window boundary. Acceptable for now.
+- No global limit on the rest of the API yet; this should be weighed against the NFR-2 load test.
+- `secureHeaders()` defaults include `Cross-Origin-Resource-Policy: same-origin`. When the frontend runs on a different origin, CORS and possibly this header will need explicit configuration.
+
+---
+
 ## Conventions for future entries
 
 - Date each entry (UTC-agnostic, local date is fine).
