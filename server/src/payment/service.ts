@@ -7,6 +7,7 @@ import {
   InvoiceNotAvailableError,
 } from './errors.js'
 import { BookingNotFoundError, BookingAccessDeniedError } from '../booking/errors.js'
+import { sendNotification } from '../notification/service.js'
 
 async function getOwnedBookingWithRelations(bookingId: string, userId: string) {
   const booking = await prisma.booking.findUnique({
@@ -97,6 +98,18 @@ export async function syncPaymentStatus(params: { bookingId: string; userId: str
       prisma.payment.update({ where: { id: booking.payment.id }, data: { status: 'SUCCEEDED' } }),
       prisma.booking.update({ where: { id: booking.id }, data: { status: 'CONFIRMED' } }),
     ])
+    await sendNotification({
+      userId: booking.userId,
+      bookingId: booking.id,
+      data: {
+        type: 'BOOKING_CONFIRMED',
+        packageTitle: booking.package.title,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        totalPaid: Number(payment.amount),
+        currency: payment.currency,
+      },
+    })
     return { payment, booking: updatedBooking }
   }
 
@@ -115,11 +128,27 @@ export async function syncPaymentStatus(params: { bookingId: string; userId: str
 // payment's status changes, authenticated via a signature rather than a
 // logged-in user (Stripe isn't a user of our app).
 export async function applyPaymentIntentSucceeded(paymentIntentId: string) {
-  const payment = await prisma.payment.findUnique({ where: { providerRef: paymentIntentId } })
+  const payment = await prisma.payment.findUnique({
+    where: { providerRef: paymentIntentId },
+    include: { booking: { include: { package: true } } },
+  })
   if (!payment) return
 
   await prisma.payment.update({ where: { id: payment.id }, data: { status: 'SUCCEEDED' } })
   await prisma.booking.update({ where: { id: payment.bookingId }, data: { status: 'CONFIRMED' } })
+
+  await sendNotification({
+    userId: payment.booking.userId,
+    bookingId: payment.booking.id,
+    data: {
+      type: 'BOOKING_CONFIRMED',
+      packageTitle: payment.booking.package.title,
+      startDate: payment.booking.startDate,
+      endDate: payment.booking.endDate,
+      totalPaid: Number(payment.amount),
+      currency: payment.currency,
+    },
+  })
 }
 
 export async function applyPaymentIntentFailed(paymentIntentId: string) {
