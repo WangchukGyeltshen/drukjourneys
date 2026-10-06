@@ -44,6 +44,7 @@ model RefreshToken {
   revokedAt DateTime?
   createdAt DateTime  @default(now())
 
+  @@index([userId])
   @@map("refresh_tokens")
 }
 
@@ -71,6 +72,9 @@ model Package {
   updatedAt              DateTime        @updatedAt
   bookings               Booking[]
 
+  @@index([isActive, createdAt])
+  @@index([dzongkhag])
+  @@index([category])
   @@map("packages")
 }
 
@@ -101,6 +105,8 @@ model Document {
   fileSizeBytes    Int
   uploadedAt       DateTime       @default(now())
 
+  @@index([userId, uploadedAt])
+  @@index([status, uploadedAt])
   @@map("documents")
 }
 
@@ -130,6 +136,9 @@ model Booking {
   payment         Payment?
   review          Review?
 
+  @@index([userId, createdAt])
+  @@index([packageId])
+  @@index([status])
   @@map("bookings")
 }
 
@@ -201,6 +210,8 @@ model GuideAssignment {
   vehicle    Vehicle  @relation(fields: [vehicleId], references: [id])
   assignedAt DateTime @default(now())
 
+  @@index([guideId])
+  @@index([vehicleId])
   @@map("guide_assignments")
 }
 
@@ -249,6 +260,7 @@ model Review {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  @@index([userId])
   @@map("reviews")
 }
 
@@ -279,6 +291,7 @@ model SupportInquiry {
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt
 
+  @@index([createdAt])
   @@map("support_inquiries")
 }
 
@@ -307,5 +320,7 @@ model Notification {
   errorMessage     String?
   createdAt        DateTime           @default(now())
 
+  @@index([createdAt])
+  @@index([userId])
   @@map("notifications")
 }
