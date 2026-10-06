@@ -123,6 +123,16 @@ A running log of security-relevant decisions made during implementation: accepte
 
 ---
 
+## 2026-10-06: Dependency audit, nodemailer upgrade
+
+**Found:** `npm audit` reported several advisories against `nodemailer` 7.0.9, a production dependency (the worst was a high-severity denial of service in its address parser, affecting versions up to 7.0.10; others were SMTP/header injection and file-access bypass issues in features this project does not use).
+
+**Fixed:** upgraded `nodemailer` to 10.0.15 and `@types/nodemailer` to 8.0.2 (both pinned exactly). Type check clean. Verified live afterwards with real emails sent through Gmail SMTP for SDF_CALCULATED, GUIDE_ASSIGNED and BOOKING_CONFIRMED, each recorded as SENT and received in a real inbox.
+
+**Accepted (dev-only):** the 7 remaining findings sit in the Prisma CLI chain (`prisma`, `@prisma/config`, `deepmerge-ts`, `mysql2`) and in `autocannon` (`hyperid`, `uuid`). None of these packages run in the deployed server; they are command-line and test tooling. The suggested `npm audit fix --force` would downgrade Prisma to 6.x, which is a breaking change for this Prisma 7 project, so it is deliberately not run. Revisit when Prisma publishes a release that bumps `deepmerge-ts`, or if the build ever runs these tools in a production image.
+
+**Not yet tested live:** BOOKING_CANCELLED after the upgrade (same code path as the others).
+
 ## Conventions for future entries
 
 - Date each entry (UTC-agnostic, local date is fine).
