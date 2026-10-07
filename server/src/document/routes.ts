@@ -1,11 +1,17 @@
 import { Hono } from 'hono'
 import { parsePagination, paginationMeta } from '../lib/pagination.js'
-import { docTypeSchema, documentStatusFilterSchema, reviewDocumentSchema } from './schemas.js'
+import {
+  docTypeSchema,
+  documentStatusFilterSchema,
+  reviewDocumentSchema,
+  accessLogFilterSchema,
+} from './schemas.js'
 import {
   uploadDocument,
   listDocumentsForUser,
   getDocumentFileForUser,
   listAllDocuments,
+  listAccessLogs,
   reviewDocument,
 } from './service.js'
 import {
@@ -93,6 +99,23 @@ documentRoutes.get('/all', requireRole('AGENT', 'ADMIN'), async (c) => {
   return c.json({ documents: items, pagination: paginationMeta(total, parsed.pagination) })
 })
 
+// Admin-only audit trail of staff access to documents, optionally
+// ?documentId=<uuid>. Agents are excluded so staff cannot read the record
+// of their own activity. Single segment, so it cannot clash with the
+// '/:id/...' routes.
+documentRoutes.get('/access-log', requireRole('ADMIN'), async (c) => {
+  const filter = accessLogFilterSchema.safeParse({ documentId: c.req.query('documentId') })
+  if (!filter.success) {
+    return c.json({ error: 'documentId must be a valid UUID' }, 400)
+  }
+  const parsed = parsePagination(c.req.query())
+  if (!parsed.ok) {
+    return c.json({ error: 'Validation failed', details: parsed.details }, 400)
+  }
+  const { items, total } = await listAccessLogs(filter.data.documentId, parsed.pagination)
+  return c.json({ accessLogs: items, pagination: paginationMeta(total, parsed.pagination) })
+})
+
 documentRoutes.get('/:id/download', async (c) => {
   const user = c.get('user')
   const id = c.req.param('id')
@@ -141,7 +164,13 @@ documentRoutes.patch('/:id/status', requireRole('AGENT', 'ADMIN'), async (c) => 
   }
 
   try {
-    const document = await reviewDocument({ documentId: id, status: result.data.status })
+    const user = c.get('user')
+    const document = await reviewDocument({
+      documentId: id,
+      status: result.data.status,
+      actorId: user.sub,
+      actorRole: user.role,
+    })
     return c.json({ document })
   } catch (err) {
     if (err instanceof DocumentNotFoundError) {

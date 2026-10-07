@@ -14,6 +14,12 @@ import {
   DocumentNotFoundError,
   DocumentAccessDeniedError,
 } from './errors.js'
+
+type StaffRole = 'AGENT' | 'ADMIN'
+
+function asStaffRole(role: string): StaffRole | null {
+  return role === 'AGENT' || role === 'ADMIN' ? role : null
+}
 import type { DocumentType, DocumentStatus } from '../generated/prisma/enums.js'
 
 export async function uploadDocument(params: {
@@ -89,12 +95,28 @@ export async function getDocumentFileForUser(params: {
   }
 
   const isOwner = document.userId === userId
-  const isStaff = role === 'AGENT' || role === 'ADMIN'
-  if (!isOwner && !isStaff) {
+  const staffRole = asStaffRole(role)
+  if (!isOwner && !staffRole) {
     throw new DocumentAccessDeniedError()
   }
 
   const data = await readStoredFile(document.storageKey)
+
+  // Staff access to someone else's document is audited (NFR-6). The log
+  // write is awaited and NOT caught on purpose: if the audit entry can't
+  // be recorded, the file is not handed over (fail closed).
+  if (!isOwner && staffRole) {
+    await prisma.documentAccessLog.create({
+      data: {
+        documentId: document.id,
+        ownerId: document.userId,
+        actorId: userId,
+        actorRole: staffRole,
+        action: 'DOWNLOAD',
+      },
+    })
+  }
+
   return { document, data }
 }
 
@@ -115,16 +137,54 @@ export async function listAllDocuments(status: DocumentStatus | undefined, pagin
   return { items, total }
 }
 
+// Admin-only view of the staff access audit trail, newest first,
+// optionally narrowed to a single document.
+export async function listAccessLogs(documentId: string | undefined, pagination: Pagination) {
+  const where = documentId ? { documentId } : undefined
+  const [items, total] = await Promise.all([
+    prisma.documentAccessLog.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    prisma.documentAccessLog.count({ where }),
+  ])
+  return { items, total }
+}
+
 export async function reviewDocument(params: {
   documentId: string
   status: 'APPROVED' | 'REJECTED'
+  actorId: string
+  actorRole: string
 }) {
+  const staffRole = asStaffRole(params.actorRole)
+  if (!staffRole) {
+    throw new DocumentAccessDeniedError()
+  }
+
   const document = await prisma.document.findUnique({ where: { id: params.documentId } })
   if (!document) {
     throw new DocumentNotFoundError()
   }
-  return prisma.document.update({
-    where: { id: params.documentId },
-    data: { status: params.status },
-  })
+
+  // Status change and its audit entry succeed or fail together.
+  const [updated] = await prisma.$transaction([
+    prisma.document.update({
+      where: { id: params.documentId },
+      data: { status: params.status },
+    }),
+    prisma.documentAccessLog.create({
+      data: {
+        documentId: document.id,
+        ownerId: document.userId,
+        actorId: params.actorId,
+        actorRole: staffRole,
+        action: 'STATUS_CHANGE',
+        newStatus: params.status,
+      },
+    }),
+  ])
+  return updated
 }

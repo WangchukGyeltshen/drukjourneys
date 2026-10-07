@@ -133,6 +133,21 @@ A running log of security-relevant decisions made during implementation: accepte
 
 **Not yet tested live:** BOOKING_CANCELLED after the upgrade (same code path as the others).
 
+## 2026-10-07: Audit log for staff access to documents (closes an NFR-6 gap)
+
+**Gap closed:** the 2026-10-05 document entry listed "no audit log of staff views" as a known gap. Staff could download any traveler's passport scan with no record of who or when.
+
+**Fixed:** new table `document_access_logs` (model `DocumentAccessLog`). A row is written when an AGENT or ADMIN downloads a document that is not their own (`DOWNLOAD`), and when they approve or reject one (`STATUS_CHANGE`, with the new status). Each row stores document id, owner id, actor id, actor role and time. Owners reading their own files are not logged.
+
+**Design decisions:**
+- **Fail closed:** the download log write is awaited after the file is decrypted and before it is returned. If the audit entry cannot be saved, the file is not delivered. Status changes and their audit row run in one transaction.
+- **No foreign keys:** ids are plain strings so the trail survives deletion of a document or user and is never removed by a cascade.
+- **Admin-only reading:** `GET /documents/access-log` (paginated, optional `?documentId=`) requires ADMIN, so agents cannot read the record of their own activity.
+
+**Verified live:** agent download and approval each produced one row; admin could list and filter them; an agent token got 403; a malformed document id got 400.
+
+**Still open:** logs are append-only by convention only. Nothing at the database level stops someone with direct access from editing or deleting rows, and there is no alerting on unusual access (for example one agent downloading many passports). There is no retention policy for the log. Listing documents (`GET /documents/all`) shows metadata only and is not logged. Key rotation for the document encryption key and document deletion/retention remain open from the 2026-10-05 entry.
+
 ## Conventions for future entries
 
 - Date each entry (UTC-agnostic, local date is fine).

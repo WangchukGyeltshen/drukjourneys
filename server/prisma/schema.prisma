@@ -110,6 +110,30 @@ model Document {
   @@map("documents")
 }
 
+enum DocumentAccessAction {
+  DOWNLOAD
+  STATUS_CHANGE
+}
+
+// Audit trail of STAFF access to travelers' documents (NFR-6). Owners
+// reading their own files are not logged. The ids are deliberately plain
+// strings, not foreign keys: the log must outlive the document or user it
+// refers to, and must never be wiped by a cascade delete.
+model DocumentAccessLog {
+  id         String               @id @default(uuid())
+  documentId String
+  ownerId    String
+  actorId    String
+  actorRole  Role
+  action     DocumentAccessAction
+  newStatus  DocumentStatus?
+  createdAt  DateTime             @default(now())
+
+  @@index([documentId, createdAt])
+  @@index([actorId, createdAt])
+  @@map("document_access_logs")
+}
+
 enum BookingStatus {
   DRAFT
   SDF_CALCULATED
