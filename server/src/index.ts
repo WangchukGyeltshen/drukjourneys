@@ -15,6 +15,7 @@ import { reportRoutes } from './reports/routes.js'
 import { faqRoutes, faqAdminRoutes } from './faq/routes.js'
 import { supportRoutes, supportAdminRoutes } from './support/routes.js'
 import { notificationRoutes } from './notification/routes.js'
+import { healthRoutes } from './health/routes.js'
 
 const app = new Hono()
 
@@ -30,6 +31,7 @@ app.get('/', (c) => {
   return c.json({ message: 'DrukJourneys API is running' })
 })
 
+app.route('/health', healthRoutes)
 app.route('/auth', authRoutes)
 app.route('/packages', packageRoutes)
 app.route('/sdf', sdfRoutes)
