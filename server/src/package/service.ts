@@ -32,7 +32,7 @@ export async function getPackageById(id: string) {
   // its direct URL. (Internal modules like Booking, once built, will
   // read Package rows directly via Prisma rather than through this
   // public-facing function, so they're unaffected by this filter.)
-  if (!pkg || !pkg.isActive) {
+  if (!pkg?.isActive) {
     return null
   }
   return pkg

@@ -80,11 +80,11 @@ async function main() {
   console.log('Seeded 4 packages, 2 guides, 2 vehicles.')
 }
 
-main()
-  .catch((err) => {
-    console.error(err)
-    process.exit(1)
-  })
-  .finally(async () => {
-    await prisma.$disconnect()
-  })
+try {
+  await main()
+} catch (err) {
+  console.error(err)
+  process.exitCode = 1
+} finally {
+  await prisma.$disconnect()
+}

@@ -29,7 +29,7 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
   // the client presumably only showed active packages — never trust that
   // the client only sent us something it was allowed to see.
   const pkg = await prisma.package.findUnique({ where: { id: input.packageId } })
-  if (!pkg || !pkg.isActive) {
+  if (!pkg?.isActive) {
     throw new PackageNotFoundError()
   }
 

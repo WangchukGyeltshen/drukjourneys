@@ -13,13 +13,13 @@ export async function listPublicFaqEntries() {
 
 // Staff: everything, including inactive entries, so they can be
 // reactivated rather than only ever created fresh.
-export async function listAllFaqEntries() {
+export function listAllFaqEntries() {
   return prisma.faqEntry.findMany({
     orderBy: [{ category: 'asc' }, { order: 'asc' }],
   })
 }
 
-export async function createFaqEntry(input: CreateFaqEntryInput) {
+export function createFaqEntry(input: CreateFaqEntryInput) {
   return prisma.faqEntry.create({ data: input })
 }
 

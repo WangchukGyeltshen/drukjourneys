@@ -12,7 +12,7 @@ import type {
   UpdateVehicleInput,
 } from './schemas.js'
 
-export async function listGuides() {
+export function listGuides() {
   return prisma.guide.findMany({ orderBy: { name: 'asc' } })
 }
 
@@ -48,7 +48,7 @@ export async function updateGuide(id: string, input: UpdateGuideInput) {
   return prisma.guide.update({ where: { id }, data: input })
 }
 
-export async function listVehicles() {
+export function listVehicles() {
   return prisma.vehicle.findMany({ orderBy: { plateNumber: 'asc' } })
 }
 

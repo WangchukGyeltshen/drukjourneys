@@ -7,7 +7,7 @@ import type { CreateSupportInquiryInput, UpdateSupportInquiryStatusInput } from 
 // contact-form path (PRD: "real-time channel for pre-booking
 // questions"), and a visitor asking a question before deciding whether
 // to even register shouldn't need an account first.
-export async function createSupportInquiry(input: CreateSupportInquiryInput) {
+export function createSupportInquiry(input: CreateSupportInquiryInput) {
   return prisma.supportInquiry.create({ data: input })
 }
 

@@ -23,7 +23,7 @@ export type TokenPayload = {
 
 const TOKEN_LIFETIME_SECONDS = 60 * 60 * 2 // 2 hours
 
-export async function signAccessToken(userId: string, role: string): Promise<string> {
+export function signAccessToken(userId: string, role: string): Promise<string> {
   const payload: TokenPayload = {
     sub: userId,
     role,

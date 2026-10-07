@@ -25,7 +25,7 @@ const SEASON_ORDER = ['Spring', 'Summer', 'Autumn', 'Winter'] as const
 // are bookings that were actually paid for, i.e. real tourist arrivals,
 // as opposed to DRAFT/SDF_CALCULATED/GUIDE_ASSIGNED bookings still in
 // progress or CANCELLED ones that never happened.
-async function getConfirmedBookingsForReporting() {
+function getConfirmedBookingsForReporting() {
   return prisma.booking.findMany({
     where: { status: 'CONFIRMED' },
     include: { package: true, sdfRecord: true },

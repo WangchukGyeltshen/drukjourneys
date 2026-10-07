@@ -107,7 +107,7 @@ export async function rotateRefreshToken(
   })
 
   const isInvalid =
-    !existing || existing.revokedAt !== null || existing.expiresAt.getTime() < Date.now()
+    existing?.revokedAt !== null || existing.expiresAt.getTime() < Date.now()
 
   if (isInvalid) {
     throw new InvalidRefreshTokenError()

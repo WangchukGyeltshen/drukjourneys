@@ -11,7 +11,7 @@ export type AuthVariables = {
 export async function requireAuth(c: Context<{ Variables: AuthVariables }>, next: Next) {
   const authHeader = c.req.header('Authorization')
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!authHeader?.startsWith('Bearer ')) {
     return c.json({ error: 'Missing or malformed Authorization header' }, 401)
   }
 
