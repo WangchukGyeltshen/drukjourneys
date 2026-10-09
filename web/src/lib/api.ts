@@ -2,7 +2,7 @@ import { cacheLife } from 'next/cache'
 
 // Server-side API client. API_BASE_URL has no NEXT_PUBLIC_ prefix on
 // purpose: it stays on the server and is never sent to the browser.
-const API_BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:3000'
+export const API_BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:3000'
 
 export type PackageCategory =
   | 'CULTURAL'

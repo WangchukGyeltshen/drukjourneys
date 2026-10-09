@@ -161,6 +161,19 @@ A running log of security-relevant decisions made during implementation: accepte
 
 **Known follow-ups:** the package detail page title is generic ("Package details") because a per-package title needs extra handling under Next's cache components; no `Content-Security-Policy` header is set on the frontend yet.
 
+## 2026-10-10: Sign in and register (frontend)
+
+**Decisions made:**
+- **Tokens live in httpOnly cookies set by the Next.js server, not in the browser.** Login, register and logout are server actions that call the API; the access token (2 h) and refresh token (7 days) are stored as `httpOnly`, `SameSite=Lax` cookies (`Secure` in production). Browser JavaScript cannot read them, which removes the main way an XSS bug would steal a session.
+- **No CORS rule was needed.** The browser never calls the API, so the earlier plan to open CORS for the frontend is dropped. The API stays closed to cross-origin browser calls.
+- **Open-redirect protection.** The post-login `next` path is only accepted if it starts with a single `/` and contains no backslash; anything else becomes `/`.
+- **Login errors stay generic.** A wrong email or password shows one message, so the form does not reveal which accounts exist. Register does say when an email is already taken, which the API already did.
+- Server actions are protected against cross-site form posts by Next.js's own origin check.
+
+**Open gap (to fix next):** the API's rate limiter keys on the connecting IP. With this design every sign-in reaches the API from the Next.js server, so all visitors share one IP. One person making 10 failed attempts would lock everyone out of sign-in for 15 minutes, and the per-visitor brute-force protection no longer works. Planned fix: the Next.js server forwards the visitor's IP in a header together with a shared secret, and the API trusts that header only when the secret matches.
+
+**Also open:** the access token cookie lasts 2 hours and nothing refreshes it yet, so a session ends after 2 hours even though the refresh token is still valid. A refresh route is planned. Role changes still need a new sign-in because the role is inside the token.
+
 ## Conventions for future entries
 
 - Date each entry (UTC-agnostic, local date is fine).
