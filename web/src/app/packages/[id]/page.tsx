@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getPackage, getPackageReviews } from "@/lib/api";
 import {
-  CATEGORY_COLORS,
   CATEGORY_LABELS,
   formatDuration,
   formatPrice,
@@ -39,14 +39,19 @@ async function PackageDetail({ params }: { params: Promise<{ id: string }> }) {
   return (
     <div className="mt-4 grid gap-10 lg:grid-cols-[1fr_20rem]">
       <article>
-        <p className="flex items-center gap-2 text-base font-semibold text-muted">
-          <span
-            aria-hidden="true"
-            className="inline-block size-3"
-            style={{ backgroundColor: CATEGORY_COLORS[pkg.category] }}
-          />
-          {CATEGORY_LABELS[pkg.category]}
-        </p>
+        {pkg.imageUrl ? (
+          <div className="relative mb-6 aspect-[3/2] w-full overflow-hidden bg-line sm:aspect-[2/1]">
+            <Image
+              src={pkg.imageUrl}
+              alt={`${pkg.title}, ${pkg.dzongkhag}`}
+              fill
+              priority
+              sizes="(min-width: 1024px) 700px, 100vw"
+              className="object-cover"
+            />
+          </div>
+        ) : null}
+        <p className="text-base font-semibold text-muted">{CATEGORY_LABELS[pkg.category]}</p>
         <h1 className="mt-2 font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
           {pkg.title}
         </h1>

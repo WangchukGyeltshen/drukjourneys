@@ -18,6 +18,7 @@ async function main() {
     data: [
       {
         title: 'Paro & Thimphu Cultural Explorer',
+        imageUrl: '/packages/paro-thimphu-cultural.jpg',
         description:
           'A classic introduction to Bhutan: Tiger\'s Nest Monastery, Thimphu\'s dzongs, and local markets.',
         dzongkhag: 'Paro',
@@ -29,6 +30,7 @@ async function main() {
       },
       {
         title: 'Druk Path Trek',
+        imageUrl: '/packages/druk-path-trek.jpg',
         description:
           'A moderate 6-day trek between Paro and Thimphu, passing high-altitude lakes and yak herder camps.',
         dzongkhag: 'Paro',
@@ -40,6 +42,7 @@ async function main() {
       },
       {
         title: 'Thimphu Tshechu Festival Tour',
+        imageUrl: '/packages/thimphu-tshechu.jpg',
         description:
           'Timed to the annual Thimphu Tshechu mask-dance festival, with cultural sightseeing around the capital.',
         dzongkhag: 'Thimphu',
@@ -51,6 +54,7 @@ async function main() {
       },
       {
         title: 'Snowman Trek',
+        imageUrl: '/packages/snowman-trek.jpg',
         description:
           "One of the world's most difficult treks, crossing remote high-altitude passes in northern Bhutan.",
         dzongkhag: 'Gasa',

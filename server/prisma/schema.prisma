@@ -67,6 +67,7 @@ model Package {
   basePrice              Decimal         @db.Decimal(10, 2)
   currency               String          @default("USD")
   requiresSpecialPermit  Boolean         @default(false)
+  imageUrl               String?
   isActive               Boolean         @default(true)
   createdAt              DateTime        @default(now())
   updatedAt              DateTime        @updatedAt

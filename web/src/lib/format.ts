@@ -18,17 +18,6 @@ export const CATEGORY_LABELS: Record<PackageCategory, string> = {
   WELLNESS: 'Wellness',
 }
 
-// Decorative only. The category name is always printed as text beside it,
-// so no meaning depends on colour alone.
-export const CATEGORY_COLORS: Record<PackageCategory, string> = {
-  CULTURAL: '#c1272d',
-  TREKKING: '#2e8b57',
-  FESTIVAL: '#d9a400',
-  PILGRIMAGE: '#1f6fb5',
-  ADVENTURE: '#6b4fa3',
-  WELLNESS: '#2a9d9a',
-}
-
 export const DZONGKHAGS: readonly string[] = [
   'Bumthang',
   'Chhukha',

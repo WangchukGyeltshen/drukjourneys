@@ -23,6 +23,7 @@ export type TourPackage = {
   basePrice: string
   currency: string
   requiresSpecialPermit: boolean
+  imageUrl: string | null
   createdAt: string
 }
 
