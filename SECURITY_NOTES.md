@@ -148,6 +148,19 @@ A running log of security-relevant decisions made during implementation: accepte
 
 **Still open:** logs are append-only by convention only. Nothing at the database level stops someone with direct access from editing or deleting rows, and there is no alerting on unusual access (for example one agent downloading many passports). There is no retention policy for the log. Listing documents (`GET /documents/all`) shows metadata only and is not logged. Key rotation for the document encryption key and document deletion/retention remain open from the 2026-10-05 entry.
 
+## 2026-10-09: Frontend started (Next.js), first security decisions
+
+**Decisions made:**
+- **API address stays on the server.** The public package pages fetch data in server components, using `API_BASE_URL` from `web/.env.local` (no `NEXT_PUBLIC_` prefix, git-ignored). The browser never calls the API for these pages, so no CORS rule has been opened yet and the `Cross-Origin-Resource-Policy: same-origin` header from 2026-10-05 is untouched. CORS will be configured deliberately when login arrives, because that is the first time the browser calls the API directly. Allow only the frontend's own origin, never `*`, once credentials are involved.
+- **URL filters are validated, not trusted.** Query values (dzongkhag, type, length, page) are checked against fixed lists before they reach the API, and anything unrecognised is dropped.
+- **Public reviews show first name and last initial only.** The page shortens the name before display.
+
+**Open gap (deferred):** `GET /packages/:id/reviews` still returns each reviewer's full name to anyone who calls the API directly, so the shortening on the page is cosmetic protection only. The fix belongs in `listReviewsForPackage` (return a display name, not `fullName`). Do this before real travelers leave reviews.
+
+**Dependency audit (frontend):** `npm audit` reports 5 high findings, all in the lint toolchain (`eslint-config-next`, which pulls in `@next/eslint-plugin-next`, `fast-glob`, `micromatch` and `braces`, a stack-exhaustion issue on deeply nested glob patterns). None of it ships to visitors or runs in production. **Accepted.** The suggested fix downgrades `eslint-config-next` to 14.x, which does not match Next 16, so it is deliberately not applied. Revisit when `eslint-config-next` publishes a release with updated dependencies.
+
+**Known follow-ups:** the package detail page title is generic ("Package details") because a per-package title needs extra handling under Next's cache components; no `Content-Security-Policy` header is set on the frontend yet.
+
 ## Conventions for future entries
 
 - Date each entry (UTC-agnostic, local date is fine).
