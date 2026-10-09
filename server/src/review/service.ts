@@ -85,10 +85,23 @@ export async function updateReview(params: {
   })
 }
 
+// Public reviews expose a first name and last initial only ("Pema T."),
+// never the full name, so a stranger cannot identify a traveler.
+export function toPublicReviewerName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) {
+    return 'A traveller'
+  }
+  if (parts.length === 1) {
+    return parts[0]
+  }
+  return `${parts[0]} ${parts[parts.length - 1].charAt(0)}.`
+}
+
 // Public — reviews are a storefront trust signal (PRD: international
 // travelers need "trust signals" before booking), so no auth required.
 export async function listReviewsForPackage(packageId: string) {
-  const reviews = await prisma.review.findMany({
+  const rows = await prisma.review.findMany({
     where: { booking: { packageId } },
     orderBy: { createdAt: 'desc' },
     select: {
@@ -99,6 +112,11 @@ export async function listReviewsForPackage(packageId: string) {
       user: { select: { fullName: true } },
     },
   })
+
+  const reviews = rows.map(({ user, ...review }) => ({
+    ...review,
+    reviewerName: toPublicReviewerName(user.fullName),
+  }))
 
   const averageRating =
     reviews.length > 0

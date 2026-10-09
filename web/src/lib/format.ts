@@ -69,16 +69,3 @@ export function formatPrice(amount: string, currency: string): string {
 export function formatReviewDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
 }
-
-// Public reviews show a first name and last initial only ("Pema T."),
-// not the full name the API returns.
-export function reviewerDisplayName(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) {
-    return 'A traveller'
-  }
-  if (parts.length === 1) {
-    return parts[0]
-  }
-  return `${parts[0]} ${parts[parts.length - 1].charAt(0)}.`
-}

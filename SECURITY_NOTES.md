@@ -153,9 +153,9 @@ A running log of security-relevant decisions made during implementation: accepte
 **Decisions made:**
 - **API address stays on the server.** The public package pages fetch data in server components, using `API_BASE_URL` from `web/.env.local` (no `NEXT_PUBLIC_` prefix, git-ignored). The browser never calls the API for these pages, so no CORS rule has been opened yet and the `Cross-Origin-Resource-Policy: same-origin` header from 2026-10-05 is untouched. CORS will be configured deliberately when login arrives, because that is the first time the browser calls the API directly. Allow only the frontend's own origin, never `*`, once credentials are involved.
 - **URL filters are validated, not trusted.** Query values (dzongkhag, type, length, page) are checked against fixed lists before they reach the API, and anything unrecognised is dropped.
-- **Public reviews show first name and last initial only.** The page shortens the name before display.
+- **Public reviews show first name and last initial only.**
 
-**Open gap (deferred):** `GET /packages/:id/reviews` still returns each reviewer's full name to anyone who calls the API directly, so the shortening on the page is cosmetic protection only. The fix belongs in `listReviewsForPackage` (return a display name, not `fullName`). Do this before real travelers leave reviews.
+**Fixed (2026-10-09, same day):** `GET /packages/:id/reviews` previously returned each reviewer's full name to anyone calling the API directly. `listReviewsForPackage` now returns `reviewerName` ("Pema T.") and no `user` object, so the shortening happens on the server and the frontend just displays it. The staff-only guide reviews endpoint still returns full names on purpose.
 
 **Dependency audit (frontend):** `npm audit` reports 5 high findings, all in the lint toolchain (`eslint-config-next`, which pulls in `@next/eslint-plugin-next`, `fast-glob`, `micromatch` and `braces`, a stack-exhaustion issue on deeply nested glob patterns). None of it ships to visitors or runs in production. **Accepted.** The suggested fix downgrades `eslint-config-next` to 14.x, which does not match Next 16, so it is deliberately not applied. Revisit when `eslint-config-next` publishes a release with updated dependencies.
 

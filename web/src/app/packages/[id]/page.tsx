@@ -9,7 +9,6 @@ import {
   formatDuration,
   formatPrice,
   formatReviewDate,
-  reviewerDisplayName,
 } from "@/lib/format";
 
 export const metadata: Metadata = {
@@ -108,7 +107,7 @@ async function Reviews({ id }: { id: string }) {
                 <p className="font-semibold">{review.packageRating} out of 5</p>
                 {review.packageComment ? <p className="mt-1">{review.packageComment}</p> : null}
                 <p className="mt-1 text-sm text-muted">
-                  {reviewerDisplayName(review.user.fullName)}, {formatReviewDate(review.createdAt)}
+                  {review.reviewerName}, {formatReviewDate(review.createdAt)}
                 </p>
               </li>
             ))}

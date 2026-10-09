@@ -96,7 +96,7 @@ export type PackageReview = {
   packageRating: number
   packageComment: string | null
   createdAt: string
-  user: { fullName: string }
+  reviewerName: string
 }
 
 export type PackageReviews = {
