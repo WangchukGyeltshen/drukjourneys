@@ -1,3 +1,4 @@
+import { headers } from 'next/headers'
 import { API_BASE_URL } from '@/lib/api'
 import { getAccessToken } from '@/lib/session'
 
@@ -13,6 +14,19 @@ export type AuthResult =
   | { ok: true; user: AuthUser; token: string; refreshToken: string }
   | { ok: false; status: number; error: string; fieldErrors?: Record<string, string[]> }
 
+// Headers that tell the API which visitor this request is for, so its
+// rate limiter counts visitors separately. The secret proves the request
+// comes from this server. Without a secret nothing is forwarded.
+export async function forwardedHeaders(): Promise<Record<string, string>> {
+  const secret = process.env.TRUSTED_PROXY_SECRET
+  if (!secret) {
+    return {}
+  }
+  const incoming = await headers()
+  const visitorIp = incoming.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1'
+  return { 'X-Proxy-Secret': secret, 'X-Client-IP': visitorIp }
+}
+
 // POST to an auth endpoint. Network failures become a normal result, so
 // callers show a message instead of crashing the page.
 export async function postAuth(path: string, body: unknown): Promise<AuthResult> {
@@ -20,7 +34,7 @@ export async function postAuth(path: string, body: unknown): Promise<AuthResult>
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await forwardedHeaders()) },
       body: JSON.stringify(body),
       cache: 'no-store',
     })

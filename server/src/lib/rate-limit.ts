@@ -1,5 +1,8 @@
 import { createMiddleware } from 'hono/factory'
+import { timingSafeEqual } from 'node:crypto'
+import { isIP } from 'node:net'
 import { getConnInfo } from '@hono/node-server/conninfo'
+import type { Context } from 'hono'
 
 type RateLimitOptions = {
   windowMs: number // length of each counting window
@@ -8,6 +11,30 @@ type RateLimitOptions = {
 
 type Entry = { count: number; resetAt: number }
 
+const proxySecret = process.env.TRUSTED_PROXY_SECRET
+
+function secretMatches(provided: string | undefined): boolean {
+  if (!proxySecret || !provided) {
+    return false
+  }
+  const a = Buffer.from(provided)
+  const b = Buffer.from(proxySecret)
+  return a.length === b.length && timingSafeEqual(a, b)
+}
+
+// The web server sits in front of this API, so every visitor's request
+// arrives from the web server's own address. The web server therefore
+// forwards the visitor's address in X-Client-IP together with a shared
+// secret. The header is trusted ONLY when the secret matches, so nobody
+// else can pick their own rate-limit bucket by sending it.
+function clientKey(c: Context): string {
+  const forwarded = c.req.header('x-client-ip')
+  if (secretMatches(c.req.header('x-proxy-secret')) && forwarded && isIP(forwarded) !== 0) {
+    return forwarded
+  }
+  return getConnInfo(c).remote.address ?? 'unknown'
+}
+
 // A simple fixed-window limiter, keyed by the client's connection IP.
 // Each call to rateLimit() gets its own counters, so login and register
 // are limited independently.
@@ -15,10 +42,9 @@ type Entry = { count: number; resetAt: number }
 // Limits of this design (documented in SECURITY_NOTES.md):
 // - Counters live in this process's memory: they reset on restart and are
 //   not shared between multiple server instances (use Redis for that).
-// - The key is the socket's remote address, not X-Forwarded-For, because a
-//   client can set that header to anything. Behind a reverse proxy every
-//   request would share the proxy's IP, so a trusted-proxy setting is
-//   needed at deployment time.
+// - The key is the socket's remote address, unless the request carries the
+//   shared proxy secret (see clientKey), in which case it is the visitor
+//   address the web server forwarded. X-Forwarded-For is never trusted.
 export function rateLimit(options: RateLimitOptions) {
   const hits = new Map<string, Entry>()
 
@@ -32,7 +58,7 @@ export function rateLimit(options: RateLimitOptions) {
   sweep.unref() // never keep the process alive just for this timer
 
   return createMiddleware(async (c, next) => {
-    const ip = getConnInfo(c).remote.address ?? 'unknown'
+    const ip = clientKey(c)
     const now = Date.now()
     const entry = hits.get(ip)
 
