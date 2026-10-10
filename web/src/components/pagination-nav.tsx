@@ -7,7 +7,7 @@ function hrefFor(query: Record<string, string>, page: number): string {
     params.set('page', String(page))
   }
   const suffix = params.toString()
-  return suffix ? `/?${suffix}` : '/'
+  return suffix ? `/?${suffix}#packages` : '/#packages'
 }
 
 const linkClass = 'inline-flex min-h-11 items-center border border-brand px-4 text-base font-medium text-brand hover:bg-brand hover:text-white'

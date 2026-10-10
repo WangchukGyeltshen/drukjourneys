@@ -8,12 +8,18 @@ const labelClass = 'mb-1 block text-sm font-semibold'
 // A plain GET form: it works without JavaScript, the filters live in the
 // URL (so results can be shared or bookmarked), and every control is a
 // native, keyboard-accessible element. Submitting drops the page number,
-// so a new search always starts on page 1.
+// so a new search always starts on page 1. Autocomplete is off so the
+// browser cannot restore old dropdown values that disagree with the results.
+// The key rebuilds the form when the active filters change (for example on
+// "Clear filters"), because defaultValue is only read when a form first
+// appears.
 export function FilterBar({ filters, showClear }: { filters: BrowseFilters; showClear: boolean }) {
   return (
     <form
-      action="/"
+      key={`${filters.dzongkhag ?? ''}|${filters.category ?? ''}|${filters.maxDurationDays ?? ''}`}
+      action="/#packages"
       method="get"
+      autoComplete="off"
       className="grid gap-4 border border-line bg-paper p-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-end"
     >
       <div>
@@ -68,7 +74,7 @@ export function FilterBar({ filters, showClear }: { filters: BrowseFilters; show
           Show packages
         </button>
         {showClear ? (
-          <Link href="/" className="text-base font-medium text-brand underline underline-offset-4">
+          <Link href="/#packages" className="text-base font-medium text-brand underline underline-offset-4">
             Clear filters
           </Link>
         ) : null}

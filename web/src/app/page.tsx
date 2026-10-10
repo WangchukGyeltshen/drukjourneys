@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { FilterBar } from "@/components/filter-bar";
+import { HomeHero } from "@/components/home-hero";
 import { PackageCard } from "@/components/package-card";
 import { PaginationNav } from "@/components/pagination-nav";
 import { listPackages } from "@/lib/api";
@@ -13,20 +14,26 @@ export const metadata: Metadata = {
 
 export default function HomePage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
-      <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-        Find a trip in Bhutan
-      </h1>
-      <p className="mt-3 max-w-prose text-lg text-muted">
-        Every package comes with a licensed local guide and a vehicle. The price shown is for the
-        package; your Sustainable Development Fee is added when you book.
-      </p>
-      {/* searchParams is only known per request, so everything that reads it
-          streams in behind this boundary while the heading renders at once. */}
-      <Suspense fallback={<BrowseSkeleton />}>
-        <Browse searchParams={searchParams} />
-      </Suspense>
-    </div>
+    <>
+      <HomeHero />
+      <section
+        id="packages"
+        aria-labelledby="packages-heading"
+        className="mx-auto w-full max-w-6xl scroll-mt-4 px-4 py-10 sm:px-6"
+      >
+        <h2 id="packages-heading" className="font-display text-3xl font-semibold tracking-tight">
+          Tour packages
+        </h2>
+        <p className="mt-3 max-w-prose text-lg text-muted">
+          The price shown is for the package. Your Sustainable Development Fee is added when you book.
+        </p>
+        {/* searchParams is only known per request, so everything that reads it
+            streams in behind this boundary while the heading renders at once. */}
+        <Suspense fallback={<BrowseSkeleton />}>
+          <Browse searchParams={searchParams} />
+        </Suspense>
+      </section>
+    </>
   );
 }
 
@@ -52,7 +59,7 @@ async function Browse({ searchParams }: { searchParams: Promise<RawSearchParams>
           <h2 className="font-display text-xl font-semibold">No packages match these filters</h2>
           <p className="mt-2 text-muted">
             Try a different dzongkhag or type of trip, or{" "}
-            <Link href="/" className="font-medium text-brand underline underline-offset-4">
+            <Link href="/#packages" className="font-medium text-brand underline underline-offset-4">
               clear the filters
             </Link>
             .
