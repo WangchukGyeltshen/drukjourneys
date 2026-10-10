@@ -60,9 +60,9 @@ async function Browse({ searchParams }: { searchParams: Promise<RawSearchParams>
         </div>
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {packages.map((pkg) => (
+          {packages.map((pkg, index) => (
             <li key={pkg.id} className="flex">
-              <PackageCard pkg={pkg} />
+              <PackageCard pkg={pkg} priority={index < 3} />
             </li>
           ))}
         </ul>

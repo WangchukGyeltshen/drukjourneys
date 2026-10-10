@@ -1,24 +1,15 @@
 import { cookies } from 'next/headers'
+import {
+  ACCESS_COOKIE,
+  ACCESS_MAX_AGE,
+  REFRESH_COOKIE,
+  REFRESH_MAX_AGE,
+  cookieOptions,
+} from '@/lib/session-config'
 
 // The API's tokens live in httpOnly cookies set by the Next.js server.
 // Browser JavaScript can never read them, and the browser never calls the
 // API directly, so no CORS rule is needed.
-const ACCESS_COOKIE = 'dj_access'
-const REFRESH_COOKIE = 'dj_refresh'
-
-// These match the API: access tokens last 2 hours, refresh tokens 7 days.
-const ACCESS_MAX_AGE = 60 * 60 * 2
-const REFRESH_MAX_AGE = 60 * 60 * 24 * 7
-
-function cookieOptions(maxAge: number) {
-  return {
-    httpOnly: true,
-    sameSite: 'lax' as const,
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge,
-  }
-}
 
 export async function setSession(accessToken: string, refreshToken: string) {
   const store = await cookies()

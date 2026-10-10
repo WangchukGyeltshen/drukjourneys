@@ -176,6 +176,8 @@ A running log of security-relevant decisions made during implementation: accepte
 
 **Also open:** the access token cookie lasts 2 hours and nothing refreshes it yet, so a session ends after 2 hours even though the refresh token is still valid. A refresh route is planned. Role changes still need a new sign-in because the role is inside the token.
 
+**Fixed (2026-10-10, same day): session refresh.** The 2-hour access cookie used to end the session even though the 7-day refresh token was still valid. A Next.js proxy (`web/src/proxy.ts`) now runs only for page requests that have a refresh cookie but no access cookie, swaps the refresh token at the API (rotation: the old token is revoked, a new one issued) and sets both cookies before the page renders. **Verified live:** deleting only the access cookie and reloading kept the visitor signed in and the proxy ran in the dev log. A failed refresh lets the request through as signed out and never deletes cookies, so two parallel requests cannot undo each other's refresh. **Known limits:** a dead refresh token makes each page request try one refresh call (the API limits this to 30 per 15 minutes per visitor); a role change still needs a new sign-in.
+
 ## Conventions for future entries
 
 - Date each entry (UTC-agnostic, local date is fine).
