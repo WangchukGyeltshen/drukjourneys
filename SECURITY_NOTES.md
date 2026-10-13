@@ -159,7 +159,7 @@ A running log of security-relevant decisions made during implementation: accepte
 
 **Dependency audit (frontend):** `npm audit` reports 5 high findings, all in the lint toolchain (`eslint-config-next`, which pulls in `@next/eslint-plugin-next`, `fast-glob`, `micromatch` and `braces`, a stack-exhaustion issue on deeply nested glob patterns). None of it ships to visitors or runs in production. **Accepted.** The suggested fix downgrades `eslint-config-next` to 14.x, which does not match Next 16, so it is deliberately not applied. Revisit when `eslint-config-next` publishes a release with updated dependencies.
 
-**Known follow-ups:** the package detail page title is generic ("Package details") because a per-package title needs extra handling under Next's cache components; no `Content-Security-Policy` header is set on the frontend yet.
+**Known follow-ups:** no `Content-Security-Policy` header is set on the frontend yet. (The generic package page title was fixed on 2026-10-13: each package page now sets its own title and description from the cached package lookup.)
 
 ## 2026-10-10: Sign in and register (frontend)
 
