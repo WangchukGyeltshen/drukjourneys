@@ -12,8 +12,8 @@
 }
 
 @theme inline {
-  --font-display: var(--font-bricolage), system-ui, sans-serif;
-  --font-sans: var(--font-source), system-ui, sans-serif;
+  --font-display: var(--font-bricolage), var(--font-dzongkha), system-ui, sans-serif;
+  --font-sans: var(--font-source), var(--font-dzongkha), system-ui, sans-serif;
 }
 
 :root {
@@ -26,6 +26,12 @@ body {
   font-family: var(--font-sans);
   font-size: 1.0625rem;
   line-height: 1.55;
+}
+
+/* Tibetan-script letters stack vowel marks above and below the line, so
+   Dzongkha text needs more line height than Latin text to stay legible. */
+:lang(dz) {
+  line-height: 1.9;
 }
 
 :focus-visible {

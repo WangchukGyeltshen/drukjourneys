@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Source_Sans_3 } from "next/font/google";
+import { Bricolage_Grotesque, Noto_Serif_Tibetan, Source_Sans_3 } from "next/font/google";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
@@ -16,6 +16,20 @@ const body = Source_Sans_3({
   display: "swap",
 });
 
+// Dzongkha is written in the Tibetan script, which the two Latin fonts above
+// do not contain. This font is only a fallback: the browser downloads it
+// when a page actually contains Tibetan-script characters, so visitors who
+// never see Dzongkha text never pay for it. Only the regular weight is
+// loaded: the variable version is over 700 kB because Tibetan glyphs are
+// complex, and bold is synthesised by the browser where needed.
+const dzongkha = Noto_Serif_Tibetan({
+  variable: "--font-dzongkha",
+  subsets: ["tibetan"],
+  weight: "400",
+  display: "swap",
+  preload: false,
+});
+
 export const metadata: Metadata = {
   title: {
     default: "DrukJourneys: tours in Bhutan",
@@ -27,7 +41,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable} h-full antialiased`}>
+    <html lang="en" className={`${display.variable} ${body.variable} ${dzongkha.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <a
           href="#main"

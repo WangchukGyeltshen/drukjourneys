@@ -3,9 +3,7 @@ import Link from 'next/link'
 import type { TourPackage } from '@/lib/api'
 import { CATEGORY_LABELS, formatDuration, formatPrice } from '@/lib/format'
 
-// `priority` is for the first row of cards, which are above the fold and
-// should load straight away.
-export function PackageCard({ pkg, priority = false }: { pkg: TourPackage; priority?: boolean }) {
+export function PackageCard({ pkg }: { pkg: TourPackage }) {
   return (
     <article className="relative flex w-full flex-col border border-line bg-paper transition-colors hover:border-brand">
       {pkg.imageUrl ? (
@@ -14,7 +12,6 @@ export function PackageCard({ pkg, priority = false }: { pkg: TourPackage; prior
             src={pkg.imageUrl}
             alt=""
             fill
-            priority={priority}
             sizes="(min-width: 1024px) 360px, (min-width: 640px) 50vw, 100vw"
             className="object-cover"
           />
