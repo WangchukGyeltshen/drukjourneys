@@ -11,9 +11,35 @@ import {
   formatReviewDate,
 } from "@/lib/format";
 
-export const metadata: Metadata = {
-  title: "Package details",
-};
+// Search engines show about 160 characters, so cut the description there,
+// at a word boundary.
+function shortDescription(text: string): string {
+  if (text.length <= 160) {
+    return text;
+  }
+  return `${text.slice(0, 157).replace(/\s+\S*$/, "")}...`;
+}
+
+// The package comes from a cached call, and the rest of the page already
+// waits for the request behind a Suspense boundary, so the title streams in
+// with it. If the API cannot be reached the page falls back to a generic
+// title instead of failing the whole page for the sake of a tab name.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  try {
+    const pkg = await getPackage(id);
+    if (!pkg) {
+      return { title: "Package not found" };
+    }
+    return { title: pkg.title, description: shortDescription(pkg.description) };
+  } catch {
+    return { title: "Package details" };
+  }
+}
 
 export default function PackagePage({ params }: { params: Promise<{ id: string }> }) {
   return (
