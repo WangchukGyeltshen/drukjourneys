@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js'
+import { packageAmount } from '../lib/pricing.js'
 
 // Meteorological season buckets. Bhutan's peak tourist season is spring
 // and autumn (per the PRD's risk register), so grouping by season
@@ -37,11 +38,12 @@ function getConfirmedBookingsForReporting() {
 // stay consistent with each other.
 function revenueFor(booking: {
   package: { basePrice: unknown }
+  travelerCount: number
   sdfRecord: { totalSdf: unknown } | null
 }): number {
-  const packageAmount = Number(booking.package.basePrice)
+  const packageTotal = packageAmount(booking.package.basePrice, booking.travelerCount)
   const sdfAmount = booking.sdfRecord ? Number(booking.sdfRecord.totalSdf) : 0
-  return packageAmount + sdfAmount
+  return packageTotal + sdfAmount
 }
 
 export async function getBookingsByRegion() {

@@ -33,6 +33,8 @@ async function BookingDetail({ params }: { params: Promise<{ id: string }> }) {
     notFound();
   }
 
+  const packageTotal = Math.round(Number(booking.package.basePrice) * booking.travelerCount * 100) / 100;
+
   return (
     <article>
       <h1 className="font-display text-3xl font-semibold tracking-tight">Your booking</h1>
@@ -53,7 +55,7 @@ async function BookingDetail({ params }: { params: Promise<{ id: string }> }) {
         <dt className="font-semibold">Travellers</dt>
         <dd>{booking.travelerCount}</dd>
         <dt className="font-semibold">Package price</dt>
-        <dd>{formatPrice(booking.package.basePrice, booking.package.currency)}</dd>
+        <dd>{formatPrice(booking.package.basePrice, booking.package.currency)} per person</dd>
       </dl>
       {booking.sdfRecord ? (
         <section className="mt-8 border-t border-line pt-6" aria-labelledby="fee-heading">
@@ -67,6 +69,18 @@ async function BookingDetail({ params }: { params: Promise<{ id: string }> }) {
           <p className="mt-3 text-2xl font-semibold">
             {formatPrice(booking.sdfRecord.totalSdf, booking.sdfRecord.currency)}
           </p>
+          {booking.sdfRecord.currency === booking.package.currency ? (
+            <dl className="mt-4 grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 border-t border-line pt-4 text-base">
+              <dt>
+                Package, {booking.travelerCount} {booking.travelerCount === 1 ? "traveller" : "travellers"}
+              </dt>
+              <dd className="text-right">{formatPrice(String(packageTotal), booking.package.currency)}</dd>
+              <dt>Sustainable Development Fee</dt>
+              <dd className="text-right">{formatPrice(booking.sdfRecord.totalSdf, booking.sdfRecord.currency)}</dd>
+              <dt className="font-semibold">Total to pay</dt>
+              <dd className="text-right font-semibold">{formatPrice(String(packageTotal + Number(booking.sdfRecord.totalSdf)), booking.package.currency)}</dd>
+            </dl>
+          ) : null}
         </section>
       ) : null}
       {booking.status === "DRAFT" || booking.status === "SDF_CALCULATED" ? (

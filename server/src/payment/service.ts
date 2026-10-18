@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js'
+import { packageAmount } from '../lib/pricing.js'
 import { stripe } from '../lib/stripe.js'
 import {
   InvalidBookingStatusForPaymentError,
@@ -45,7 +46,7 @@ export async function createPaymentIntentForBooking(params: { bookingId: string;
     throw new UnsupportedCurrencyForStripeError()
   }
 
-  const totalUsd = Number(booking.package.basePrice) + Number(sdfRecord.totalSdf)
+  const totalUsd = packageAmount(booking.package.basePrice, booking.travelerCount) + Number(sdfRecord.totalSdf)
 
   // Stripe amounts are integers in the currency's smallest unit — cents
   // for USD, not dollars. Multiplying a float by 100 can introduce
@@ -187,8 +188,8 @@ export async function getInvoiceForBooking(params: { bookingId: string; userId: 
   }
 
   const packageLineItem = {
-    description: `Package: ${booking.package.title}`,
-    amount: booking.package.basePrice,
+    description: `Package: ${booking.package.title} (${booking.travelerCount} traveller${booking.travelerCount === 1 ? '' : 's'})`,
+    amount: packageAmount(booking.package.basePrice, booking.travelerCount),
     currency: booking.package.currency,
   }
   const sdfLineItem = {
