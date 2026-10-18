@@ -178,6 +178,18 @@ A running log of security-relevant decisions made during implementation: accepte
 
 **Fixed (2026-10-10, same day): session refresh.** The 2-hour access cookie used to end the session even though the 7-day refresh token was still valid. A Next.js proxy (`web/src/proxy.ts`) now runs only for page requests that have a refresh cookie but no access cookie, swaps the refresh token at the API (rotation: the old token is revoked, a new one issued) and sets both cookies before the page renders. **Verified live:** deleting only the access cookie and reloading kept the visitor signed in and the proxy ran in the dev log. A failed refresh lets the request through as signed out and never deletes cookies, so two parallel requests cannot undo each other's refresh. **Known limits:** a dead refresh token makes each page request try one refresh call (the API limits this to 30 per 15 minutes per visitor); a role change still needs a new sign-in.
 
+## 2026-10-18: Booking, fee and document upload (frontend)
+
+**Decisions made:**
+- **Booking dates are set by the API, not the client.** The end date must equal the start date plus (package length - 1) days, the start date cannot be in the past, and a booking holds at most 20 travellers. The Sustainable Development Fee is charged per night, so a client-chosen end date would let a visitor change the fee.
+- **The fee is per traveller.** The API requires exactly one age per traveller and sums the per-age amounts; ages are stored with the fee record. Package prices are per person and the payment, invoice and report totals all use one shared function (`server/src/lib/pricing.ts`).
+- **Document uploads go through a Next.js server action to the API**, so the browser still never calls the API and the token stays in its httpOnly cookie. The browser checks type and size first for a quick message, but the API repeats every check, including the real-file-type test (a renamed text file was refused in a live test).
+- Every booking action checks the signed-in user at the API (owner or staff only); the page never trusts an id from the URL alone.
+
+**Accepted / open:**
+- `serverActions.bodySizeLimit` was raised from 1 MB to 11 MB for the whole app so 10 MB documents fit. This applies to every server action, so a larger request body is accepted before the action checks the session. The risk is small (11 MB cap, single-process app) and is accepted for now; revisit by moving uploads to a dedicated route if abuse becomes a concern.
+- The rule "all three documents before payment" is not yet enforced on the server. It must be added to the payment-intent step when payment is built.
+
 ## Conventions for future entries
 
 - Date each entry (UTC-agnostic, local date is fine).

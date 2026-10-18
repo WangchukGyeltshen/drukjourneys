@@ -5,6 +5,9 @@ import { Suspense } from "react";
 import { BOOKING_STATUS_LABELS, TRAVELER_CATEGORY_LABELS, getBooking } from "@/lib/bookings-api";
 import { formatDay } from "@/lib/dates";
 import { formatPrice } from "@/lib/format";
+import { DOCUMENT_STATUS_LABELS, DOCUMENT_TYPE_LABELS, REQUIRED_DOCUMENT_TYPES } from "@/lib/document-rules";
+import { listMyDocuments } from "@/lib/documents-api";
+import { DocumentUploadForm } from "./document-upload-form";
 import { FeeForm } from "./fee-form";
 
 export const metadata: Metadata = {
@@ -33,6 +36,7 @@ async function BookingDetail({ params }: { params: Promise<{ id: string }> }) {
     notFound();
   }
 
+  const documents = await listMyDocuments();
   const packageTotal = Math.round(Number(booking.package.basePrice) * booking.travelerCount * 100) / 100;
 
   return (
@@ -91,8 +95,46 @@ async function BookingDetail({ params }: { params: Promise<{ id: string }> }) {
           savedAges={booking.sdfRecord?.travelerAges ?? []}
         />
       ) : null}
+      {booking.status !== "CANCELLED" ? (
+        <section className="mt-8 border-t border-line pt-6" aria-labelledby="documents-heading">
+          <h2 id="documents-heading" className="font-display text-xl font-semibold">
+            Travel documents
+          </h2>
+          <p className="mt-2 text-base text-muted">
+            We need your passport, visa and a passport-style photo before you can pay. Our team reviews
+            each file. Only you and authorised staff can see them.
+          </p>
+          <ul className="mt-4 grid gap-6">
+            {REQUIRED_DOCUMENT_TYPES.map((docType) => {
+              // The list is newest first, so the first match is the latest upload.
+              const latest = documents.find((document) => document.docType === docType);
+              return (
+                <li key={docType} className="border border-line bg-paper p-4">
+                  <h3 className="text-lg font-semibold">{DOCUMENT_TYPE_LABELS[docType]}</h3>
+                  <p className="mt-1 text-base">
+                    {latest ? (
+                      <>
+                        <strong>{DOCUMENT_STATUS_LABELS[latest.status]}</strong>
+                        <span className="text-muted">, {latest.originalFilename}</span>
+                      </>
+                    ) : (
+                      <span className="text-muted">Not uploaded yet</span>
+                    )}
+                  </p>
+                  <DocumentUploadForm
+                    bookingId={booking.id}
+                    docType={docType}
+                    label={DOCUMENT_TYPE_LABELS[docType]}
+                    hasFile={Boolean(latest)}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
       <p className="mt-8 border border-line bg-paper p-4 text-base">
-        Nothing has been charged yet. The next steps, travel documents and payment, are coming soon.
+        Nothing has been charged yet. Payment is the next step and is coming soon.
       </p>
     </article>
   );
