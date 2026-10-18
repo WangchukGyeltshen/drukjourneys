@@ -12,6 +12,13 @@ export class InvalidDateRangeError extends Error {
   }
 }
 
+export class BookingDatesNotAllowedError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'BookingDatesNotAllowedError'
+  }
+}
+
 export class BookingNotFoundError extends Error {
   constructor() {
     super('Booking not found')

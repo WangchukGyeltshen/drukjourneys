@@ -14,6 +14,7 @@ import {
 import {
   PackageNotFoundError,
   InvalidDateRangeError,
+  BookingDatesNotAllowedError,
   BookingNotFoundError,
   BookingAccessDeniedError,
   InvalidBookingStatusError,
@@ -56,7 +57,7 @@ bookingRoutes.post('/', async (c) => {
     if (err instanceof PackageNotFoundError) {
       return c.json({ error: err.message }, 404)
     }
-    if (err instanceof InvalidDateRangeError) {
+    if (err instanceof InvalidDateRangeError || err instanceof BookingDatesNotAllowedError) {
       return c.json({ error: err.message }, 400)
     }
     throw err

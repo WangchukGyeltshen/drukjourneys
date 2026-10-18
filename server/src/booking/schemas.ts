@@ -1,10 +1,13 @@
 import { z } from 'zod'
 
+// A sensible ceiling for one booking; larger groups can contact support.
+export const MAX_TRAVELERS_PER_BOOKING = 20
+
 export const createBookingSchema = z.object({
   packageId: z.string().uuid(),
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
-  travelerCount: z.coerce.number().int().positive(),
+  travelerCount: z.coerce.number().int().positive().max(MAX_TRAVELERS_PER_BOOKING),
 })
 
 export const calculateBookingSdfSchema = z.object({

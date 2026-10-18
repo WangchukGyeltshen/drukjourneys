@@ -1,0 +1,87 @@
+import { API_BASE_URL, type TourPackage } from '@/lib/api'
+import { getAccessToken } from '@/lib/session'
+
+export type BookingStatus = 'DRAFT' | 'SDF_CALCULATED' | 'GUIDE_ASSIGNED' | 'CONFIRMED' | 'CANCELLED'
+
+export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
+  DRAFT: 'Draft',
+  SDF_CALCULATED: 'Fee calculated',
+  GUIDE_ASSIGNED: 'Guide assigned',
+  CONFIRMED: 'Confirmed',
+  CANCELLED: 'Cancelled',
+}
+
+export type Booking = {
+  id: string
+  packageId: string
+  status: BookingStatus
+  startDate: string
+  endDate: string
+  travelerCount: number
+  createdAt: string
+  package: TourPackage
+}
+
+export type CreateBookingResult =
+  | { ok: true; booking: Booking }
+  | { ok: false; status: number; error: string }
+
+async function authedFetch(path: string, init: RequestInit = {}): Promise<Response | null> {
+  const token = await getAccessToken()
+  if (!token) {
+    return null
+  }
+  return fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers: { ...init.headers, Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  })
+}
+
+export async function createBooking(input: {
+  packageId: string
+  startDate: string
+  endDate: string
+  travelerCount: number
+}): Promise<CreateBookingResult> {
+  let response: Response | null
+  try {
+    response = await authedFetch('/bookings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+  } catch {
+    return { ok: false, status: 0, error: 'We could not reach the server. Please try again.' }
+  }
+  if (!response) {
+    return { ok: false, status: 401, error: 'Please sign in to book.' }
+  }
+  const data = (await response.json().catch(() => null)) as { booking?: Booking; error?: string } | null
+  if (response.ok && data?.booking) {
+    return { ok: true, booking: data.booking }
+  }
+  return { ok: false, status: response.status, error: data?.error ?? 'Something went wrong. Please try again.' }
+}
+
+// Returns the booking, "signed-out" when there is no valid session, or
+// null when it does not exist or belongs to someone else.
+export async function getBooking(id: string): Promise<Booking | 'signed-out' | null> {
+  let response: Response | null
+  try {
+    response = await authedFetch(`/bookings/${encodeURIComponent(id)}`)
+  } catch {
+    throw new Error('Could not reach the booking service')
+  }
+  if (!response || response.status === 401) {
+    return 'signed-out'
+  }
+  if (response.status === 404 || response.status === 403 || response.status === 400) {
+    return null
+  }
+  if (!response.ok) {
+    throw new Error(`Booking request failed with status ${response.status}`)
+  }
+  const data = (await response.json()) as { booking: Booking }
+  return data.booking
+}

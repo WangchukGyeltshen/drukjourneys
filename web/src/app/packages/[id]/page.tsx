@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { BookTripPanel } from "@/components/book-trip-panel";
 import { getPackage, getPackageReviews } from "@/lib/api";
 import {
   CATEGORY_LABELS,
@@ -111,6 +112,9 @@ async function PackageDetail({ params }: { params: Promise<{ id: string }> }) {
         <p className="mt-4 text-base">
           Your Sustainable Development Fee is calculated when you book and is added to this price.
         </p>
+        <Suspense fallback={<div aria-hidden="true" className="mt-6 h-40 border-t border-line pt-6" />}>
+          <BookTripPanel pkg={pkg} />
+        </Suspense>
       </aside>
     </div>
   );

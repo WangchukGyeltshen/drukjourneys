@@ -6,6 +6,7 @@ import type { CreateBookingInput, CalculateBookingSdfInput, AssignGuideInput } f
 import {
   PackageNotFoundError,
   InvalidDateRangeError,
+  BookingDatesNotAllowedError,
   BookingNotFoundError,
   BookingAccessDeniedError,
   InvalidBookingStatusError,
@@ -31,6 +32,20 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
   const pkg = await prisma.package.findUnique({ where: { id: input.packageId } })
   if (!pkg?.isActive) {
     throw new PackageNotFoundError()
+  }
+
+  // The stay length decides the Sustainable Development Fee (it is charged
+  // per night), so the dates cannot be left to the client. A package of N
+  // days is N - 1 nights, and the trip cannot start in the past.
+  const dayOf = (date: Date) => date.toISOString().slice(0, 10)
+  if (dayOf(input.startDate) < dayOf(new Date())) {
+    throw new BookingDatesNotAllowedError('startDate cannot be in the past')
+  }
+  const expectedEnd = dayOf(new Date(input.startDate.getTime() + (pkg.durationDays - 1) * MS_PER_DAY))
+  if (dayOf(input.endDate) !== expectedEnd) {
+    throw new BookingDatesNotAllowedError(
+      `endDate must be ${expectedEnd} for a ${pkg.durationDays}-day package starting on ${dayOf(input.startDate)}`
+    )
   }
 
   return prisma.booking.create({
