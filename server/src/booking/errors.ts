@@ -60,3 +60,10 @@ export class VehicleNotAvailableError extends Error {
     this.name = 'VehicleNotAvailableError'
   }
 }
+
+export class TravelerAgesMismatchError extends Error {
+  constructor(expected: number) {
+    super(`Provide exactly one age for each of the ${expected} traveller(s) on this booking`)
+    this.name = 'TravelerAgesMismatchError'
+  }
+}

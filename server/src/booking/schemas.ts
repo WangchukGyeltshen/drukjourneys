@@ -12,7 +12,10 @@ export const createBookingSchema = z.object({
 
 export const calculateBookingSdfSchema = z.object({
   travelerCategory: z.enum(['INTERNATIONAL', 'INDIAN', 'BANGLADESHI', 'MALDIVIAN', 'DOMESTIC']),
-  age: z.coerce.number().int().min(0).max(120),
+  ages: z
+    .array(z.coerce.number().int().min(0).max(120))
+    .min(1)
+    .max(MAX_TRAVELERS_PER_BOOKING),
 })
 
 export const assignGuideSchema = z.object({

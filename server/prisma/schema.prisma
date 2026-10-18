@@ -180,6 +180,7 @@ model SdfRecord {
   bookingId        String           @unique
   booking          Booking          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   travelerCategory TravelerCategory
+  travelerAges     Int[]
   nights           Int
   ratePerNight     Decimal          @db.Decimal(10, 2)
   totalSdf         Decimal          @db.Decimal(10, 2)

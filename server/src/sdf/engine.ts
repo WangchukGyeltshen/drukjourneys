@@ -35,3 +35,42 @@ export function calculateSdf(input: SdfCalculationInput): SdfCalculationResult {
     currency: rate.currency,
   }
 }
+
+export type GroupSdfInput = {
+  travelerCategory: TravelerCategory
+  nights: number
+  ages: number[]
+}
+
+export type GroupSdfResult = {
+  travelerCategory: TravelerCategory
+  nights: number
+  amountPerNight: number
+  currency: 'USD' | 'BTN'
+  travelers: { age: number; exemptionMultiplier: number; sdf: number }[]
+  totalSdf: number
+}
+
+// One fee per traveller: each age gets its own exemption multiplier and the
+// group total is the sum of the per-traveller amounts.
+export function calculateGroupSdf(input: GroupSdfInput): GroupSdfResult {
+  const travelers = input.ages.map((age) => {
+    const line = calculateSdf({
+      travelerCategory: input.travelerCategory,
+      nights: input.nights,
+      age,
+    })
+    return { age, exemptionMultiplier: line.exemptionMultiplier, sdf: line.totalSdf }
+  })
+  const rate = SDF_RATES[input.travelerCategory]
+  const total = travelers.reduce((sum, t) => sum + t.sdf, 0)
+
+  return {
+    travelerCategory: input.travelerCategory,
+    nights: input.nights,
+    amountPerNight: rate.amountPerNight,
+    currency: rate.currency,
+    travelers,
+    totalSdf: Math.round(total * 100) / 100,
+  }
+}

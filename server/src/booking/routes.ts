@@ -15,6 +15,7 @@ import {
   PackageNotFoundError,
   InvalidDateRangeError,
   BookingDatesNotAllowedError,
+  TravelerAgesMismatchError,
   BookingNotFoundError,
   BookingAccessDeniedError,
   InvalidBookingStatusError,
@@ -128,6 +129,9 @@ bookingRoutes.post('/:id/sdf', async (c) => {
     }
     if (err instanceof BookingAccessDeniedError) {
       return c.json({ error: err.message }, 403)
+    }
+    if (err instanceof TravelerAgesMismatchError) {
+      return c.json({ error: err.message }, 400)
     }
     if (err instanceof InvalidBookingStatusError) {
       return c.json({ error: err.message }, 409)

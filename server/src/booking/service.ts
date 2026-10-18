@@ -1,12 +1,13 @@
 import { prisma } from '../lib/prisma.js'
 import type { Pagination } from '../lib/pagination.js'
-import { calculateSdf } from '../sdf/engine.js'
+import { calculateGroupSdf } from '../sdf/engine.js'
 import { sendNotification } from '../notification/service.js'
 import type { CreateBookingInput, CalculateBookingSdfInput, AssignGuideInput } from './schemas.js'
 import {
   PackageNotFoundError,
   InvalidDateRangeError,
   BookingDatesNotAllowedError,
+  TravelerAgesMismatchError,
   BookingNotFoundError,
   BookingAccessDeniedError,
   InvalidBookingStatusError,
@@ -133,10 +134,13 @@ export async function calculateAndPersistSdf(params: {
   // input — this is the one source of truth, so the SDF can't be
   // manipulated by sending a different night count than the actual stay.
   const nights = nightsBetween(booking.startDate, booking.endDate)
-  const result = calculateSdf({
+  if (params.input.ages.length !== booking.travelerCount) {
+    throw new TravelerAgesMismatchError(booking.travelerCount)
+  }
+  const result = calculateGroupSdf({
     travelerCategory: params.input.travelerCategory,
     nights,
-    age: params.input.age,
+    ages: params.input.ages,
   })
 
   const sdfRecord = await prisma.sdfRecord.upsert({
@@ -144,6 +148,7 @@ export async function calculateAndPersistSdf(params: {
     create: {
       bookingId: booking.id,
       travelerCategory: result.travelerCategory,
+      travelerAges: params.input.ages,
       nights: result.nights,
       ratePerNight: result.amountPerNight,
       totalSdf: result.totalSdf,
@@ -151,6 +156,7 @@ export async function calculateAndPersistSdf(params: {
     },
     update: {
       travelerCategory: result.travelerCategory,
+      travelerAges: params.input.ages,
       nights: result.nights,
       ratePerNight: result.amountPerNight,
       totalSdf: result.totalSdf,

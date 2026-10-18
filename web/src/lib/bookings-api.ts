@@ -1,5 +1,6 @@
 import { API_BASE_URL, type TourPackage } from '@/lib/api'
 import { getAccessToken } from '@/lib/session'
+import type { TravelerCategory } from '@/lib/booking-labels'
 
 export type BookingStatus = 'DRAFT' | 'SDF_CALCULATED' | 'GUIDE_ASSIGNED' | 'CONFIRMED' | 'CANCELLED'
 
@@ -11,6 +12,17 @@ export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   CANCELLED: 'Cancelled',
 }
 
+export { TRAVELER_CATEGORY_LABELS, type TravelerCategory } from '@/lib/booking-labels'
+
+export type SdfRecord = {
+  travelerCategory: TravelerCategory
+  travelerAges: number[]
+  nights: number
+  ratePerNight: string
+  totalSdf: string
+  currency: string
+}
+
 export type Booking = {
   id: string
   packageId: string
@@ -20,6 +32,7 @@ export type Booking = {
   travelerCount: number
   createdAt: string
   package: TourPackage
+  sdfRecord: SdfRecord | null
 }
 
 export type CreateBookingResult =
@@ -84,4 +97,30 @@ export async function getBooking(id: string): Promise<Booking | 'signed-out' | n
   }
   const data = (await response.json()) as { booking: Booking }
   return data.booking
+}
+
+export type CalculateFeeResult = { ok: true } | { ok: false; status: number; error: string }
+
+export async function calculateFee(
+  bookingId: string,
+  input: { travelerCategory: TravelerCategory; ages: number[] },
+): Promise<CalculateFeeResult> {
+  let response: Response | null
+  try {
+    response = await authedFetch(`/bookings/${encodeURIComponent(bookingId)}/sdf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+  } catch {
+    return { ok: false, status: 0, error: 'We could not reach the server. Please try again.' }
+  }
+  if (!response) {
+    return { ok: false, status: 401, error: 'Please sign in again.' }
+  }
+  if (response.ok) {
+    return { ok: true }
+  }
+  const data = (await response.json().catch(() => null)) as { error?: string } | null
+  return { ok: false, status: response.status, error: data?.error ?? 'Something went wrong. Please try again.' }
 }
