@@ -6,9 +6,12 @@ import {
   UnsupportedCurrencyForStripeError,
   PaymentAlreadyExistsError,
   InvoiceNotAvailableError,
+  MissingDocumentsError,
 } from './errors.js'
 import { BookingNotFoundError, BookingAccessDeniedError } from '../booking/errors.js'
 import { sendNotification } from '../notification/service.js'
+
+const REQUIRED_DOCUMENT_TYPES = ['PASSPORT', 'VISA', 'PHOTO'] as const
 
 async function getOwnedBookingWithRelations(bookingId: string, userId: string) {
   const booking = await prisma.booking.findUnique({
@@ -34,7 +37,27 @@ export async function createPaymentIntentForBooking(params: { bookingId: string;
   }
 
   if (booking.payment) {
+    // A payment that was started but not finished (for example the page was
+    // reloaded) can be resumed with the same Stripe PaymentIntent.
+    if (booking.payment.status === 'PENDING' && booking.payment.providerRef) {
+      const existing = await stripe.paymentIntents.retrieve(booking.payment.providerRef)
+      return { payment: booking.payment, clientSecret: existing.client_secret }
+    }
     throw new PaymentAlreadyExistsError()
+  }
+
+  // Passport, visa and photo must be on file, and the newest upload of
+  // each must not have been rejected by staff.
+  const documents = await prisma.document.findMany({
+    where: { userId: booking.userId, docType: { in: [...REQUIRED_DOCUMENT_TYPES] } },
+    orderBy: { uploadedAt: 'desc' },
+  })
+  const missing = REQUIRED_DOCUMENT_TYPES.filter((docType) => {
+    const latest = documents.find((document) => document.docType === docType)
+    return !latest || latest.status === 'REJECTED'
+  })
+  if (missing.length > 0) {
+    throw new MissingDocumentsError(missing.map((docType) => docType.toLowerCase()))
   }
 
   // sdfRecord is guaranteed to exist here — a booking can't reach

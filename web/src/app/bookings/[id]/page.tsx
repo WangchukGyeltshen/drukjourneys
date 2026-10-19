@@ -9,6 +9,7 @@ import { DOCUMENT_STATUS_LABELS, DOCUMENT_TYPE_LABELS, REQUIRED_DOCUMENT_TYPES }
 import { listMyDocuments } from "@/lib/documents-api";
 import { DocumentUploadForm } from "./document-upload-form";
 import { FeeForm } from "./fee-form";
+import { PaymentPanel } from "./payment-panel";
 
 export const metadata: Metadata = {
   title: "Your booking",
@@ -133,9 +134,23 @@ async function BookingDetail({ params }: { params: Promise<{ id: string }> }) {
           </ul>
         </section>
       ) : null}
-      <p className="mt-8 border border-line bg-paper p-4 text-base">
-        Nothing has been charged yet. Payment is the next step and is coming soon.
-      </p>
+      {booking.status === "GUIDE_ASSIGNED" && booking.sdfRecord && booking.sdfRecord.currency === booking.package.currency ? (
+        <PaymentPanel
+          bookingId={booking.id}
+          totalLabel={formatPrice(String(packageTotal + Number(booking.sdfRecord.totalSdf)), booking.package.currency)}
+        />
+      ) : null}
+      {booking.status === "CONFIRMED" ? (
+        <p className="mt-8 border border-line bg-paper p-4 text-base">
+          <strong>Your booking is confirmed and paid.</strong> We have emailed you the details.
+        </p>
+      ) : null}
+      {booking.status === "DRAFT" || booking.status === "SDF_CALCULATED" ? (
+        <p className="mt-8 border border-line bg-paper p-4 text-base">
+          Nothing has been charged yet. Once your fee is calculated and your documents are uploaded, our
+          team assigns your guide and vehicle. You can then pay here.
+        </p>
+      ) : null}
     </article>
   );
 }

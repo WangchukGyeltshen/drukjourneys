@@ -28,3 +28,10 @@ export class InvoiceNotAvailableError extends Error {
     this.name = 'InvoiceNotAvailableError'
   }
 }
+
+export class MissingDocumentsError extends Error {
+  constructor(missing: string[]) {
+    super(`Upload these documents before paying: ${missing.join(', ')}. A rejected file must be replaced.`)
+    this.name = 'MissingDocumentsError'
+  }
+}

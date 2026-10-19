@@ -12,6 +12,7 @@ import {
   UnsupportedCurrencyForStripeError,
   PaymentAlreadyExistsError,
   InvoiceNotAvailableError,
+  MissingDocumentsError,
 } from './errors.js'
 import { BookingNotFoundError, BookingAccessDeniedError } from '../booking/errors.js'
 import { requireAuth, type AuthVariables } from '../lib/auth-middleware.js'
@@ -26,7 +27,8 @@ function handleSharedErrors(err: unknown, c: Context) {
   if (
     err instanceof InvalidBookingStatusForPaymentError ||
     err instanceof UnsupportedCurrencyForStripeError ||
-    err instanceof PaymentAlreadyExistsError
+    err instanceof PaymentAlreadyExistsError ||
+    err instanceof MissingDocumentsError
   ) {
     return c.json({ error: err.message }, 409)
   }
