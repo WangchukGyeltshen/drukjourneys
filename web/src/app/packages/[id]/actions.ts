@@ -58,5 +58,5 @@ export async function startBooking(_previous: BookingFormState, formData: FormDa
     return { error: result.error, values };
   }
 
-  redirect(`/bookings/${result.booking.id}`);
+  redirect(`/bookings/${result.booking.id}/fee`);
 }

@@ -1,15 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
-import { Suspense } from "react";
-import { BOOKING_STATUS_LABELS, TRAVELER_CATEGORY_LABELS, getBooking } from "@/lib/bookings-api";
+import { BookingProgress } from "@/components/booking-progress";
+import { BookingShell } from "@/components/booking-shell";
+import { FeeSummary } from "@/components/fee-summary";
+import { BOOKING_STATUS_LABELS, type Booking } from "@/lib/bookings-api";
 import { formatDay } from "@/lib/dates";
 import { formatPrice } from "@/lib/format";
-import { DOCUMENT_STATUS_LABELS, DOCUMENT_TYPE_LABELS, REQUIRED_DOCUMENT_TYPES } from "@/lib/document-rules";
-import { listMyDocuments } from "@/lib/documents-api";
-import { DocumentUploadForm } from "./document-upload-form";
-import { FeeForm } from "./fee-form";
-import { PaymentPanel } from "./payment-panel";
+import { loadBookingFlow } from "./load-booking";
 
 export const metadata: Metadata = {
   title: "Your booking",
@@ -17,28 +14,58 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
+const buttonClass =
+  "inline-flex min-h-11 items-center bg-brand px-5 py-2 text-base font-semibold text-white hover:bg-brand-deep";
+
 export default function BookingPage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
-      <Suspense fallback={<p className="text-muted">Loading your booking</p>}>
-        <BookingDetail params={params} />
-      </Suspense>
-    </div>
+    <BookingShell>
+      <BookingOverview params={params} />
+    </BookingShell>
   );
 }
 
-async function BookingDetail({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const booking = await getBooking(id);
-  if (booking === "signed-out") {
-    redirect(`/login?next=${encodeURIComponent(`/bookings/${id}`)}`);
+function nextStepCard(booking: Booking, documentsOk: boolean) {
+  const base = `/bookings/${booking.id}`;
+  switch (booking.status) {
+    case "DRAFT":
+      return {
+        title: "Next: calculate your fee",
+        text: "Tell us who is travelling so we can work out your Sustainable Development Fee.",
+        action: { href: `${base}/fee`, label: "Calculate my fee" },
+      };
+    case "SDF_CALCULATED":
+      return documentsOk
+        ? {
+            title: "Your documents are in",
+            text: "Our team is assigning your guide and vehicle. When that is done you can pay to confirm the trip.",
+            action: { href: `${base}/documents`, label: "View my documents" },
+          }
+        : {
+            title: "Next: upload your travel documents",
+            text: "We need your passport, visa and a passport-style photo before we can assign a guide.",
+            action: { href: `${base}/documents`, label: "Upload documents" },
+          };
+    case "GUIDE_ASSIGNED":
+      return {
+        title: "Your guide is assigned. Pay to confirm.",
+        text: "Pay by card to confirm your booking.",
+        action: { href: `${base}/payment`, label: "Go to payment" },
+      };
+    case "CONFIRMED":
+      return {
+        title: "Your booking is confirmed and paid",
+        text: "We have emailed you the details.",
+        action: null,
+      };
+    case "CANCELLED":
+      return { title: "This booking was cancelled", text: "Nothing more is needed.", action: null };
   }
-  if (!booking) {
-    notFound();
-  }
+}
 
-  const documents = await listMyDocuments();
-  const packageTotal = Math.round(Number(booking.package.basePrice) * booking.travelerCount * 100) / 100;
+async function BookingOverview({ params }: { params: Promise<{ id: string }> }) {
+  const { booking, documentsOk, steps } = await loadBookingFlow(params, "");
+  const card = nextStepCard(booking, documentsOk);
 
   return (
     <article>
@@ -46,7 +73,24 @@ async function BookingDetail({ params }: { params: Promise<{ id: string }> }) {
       <p className="mt-2 text-lg">
         Status: <strong>{BOOKING_STATUS_LABELS[booking.status]}</strong>
       </p>
-      <dl className="mt-6 grid grid-cols-[auto_1fr] gap-x-8 gap-y-3 border-t border-line pt-6 text-base">
+
+      <div className="mt-6">
+        <BookingProgress steps={steps} />
+      </div>
+
+      <section className="border border-brand bg-paper p-5" aria-labelledby="next-heading">
+        <h2 id="next-heading" className="font-display text-xl font-semibold">
+          {card.title}
+        </h2>
+        <p className="mt-1 text-base text-muted">{card.text}</p>
+        {card.action ? (
+          <Link href={card.action.href} className={`${buttonClass} mt-4`}>
+            {card.action.label}
+          </Link>
+        ) : null}
+      </section>
+
+      <dl className="mt-8 grid grid-cols-[auto_1fr] gap-x-8 gap-y-3 border-t border-line pt-6 text-base">
         <dt className="font-semibold">Trip</dt>
         <dd>
           <Link href={`/packages/${booking.packageId}`} className="text-brand underline underline-offset-4">
@@ -62,94 +106,11 @@ async function BookingDetail({ params }: { params: Promise<{ id: string }> }) {
         <dt className="font-semibold">Package price</dt>
         <dd>{formatPrice(booking.package.basePrice, booking.package.currency)} per person</dd>
       </dl>
+
       {booking.sdfRecord ? (
-        <section className="mt-8 border-t border-line pt-6" aria-labelledby="fee-heading">
-          <h2 id="fee-heading" className="font-display text-xl font-semibold">
-            Sustainable Development Fee
-          </h2>
-          <p className="mt-2 text-base text-muted">
-            {TRAVELER_CATEGORY_LABELS[booking.sdfRecord.travelerCategory]}, {booking.sdfRecord.nights} nights at{" "}
-            {formatPrice(booking.sdfRecord.ratePerNight, booking.sdfRecord.currency)} per night for each adult.
-          </p>
-          <p className="mt-3 text-2xl font-semibold">
-            {formatPrice(booking.sdfRecord.totalSdf, booking.sdfRecord.currency)}
-          </p>
-          {booking.sdfRecord.currency === booking.package.currency ? (
-            <dl className="mt-4 grid grid-cols-[1fr_auto] gap-x-8 gap-y-2 border-t border-line pt-4 text-base">
-              <dt>
-                Package, {booking.travelerCount} {booking.travelerCount === 1 ? "traveller" : "travellers"}
-              </dt>
-              <dd className="text-right">{formatPrice(String(packageTotal), booking.package.currency)}</dd>
-              <dt>Sustainable Development Fee</dt>
-              <dd className="text-right">{formatPrice(booking.sdfRecord.totalSdf, booking.sdfRecord.currency)}</dd>
-              <dt className="font-semibold">Total to pay</dt>
-              <dd className="text-right font-semibold">{formatPrice(String(packageTotal + Number(booking.sdfRecord.totalSdf)), booking.package.currency)}</dd>
-            </dl>
-          ) : null}
-        </section>
-      ) : null}
-      {booking.status === "DRAFT" || booking.status === "SDF_CALCULATED" ? (
-        <FeeForm
-          bookingId={booking.id}
-          travelerCount={booking.travelerCount}
-          savedCategory={booking.sdfRecord?.travelerCategory ?? null}
-          savedAges={booking.sdfRecord?.travelerAges ?? []}
-        />
-      ) : null}
-      {booking.status !== "CANCELLED" ? (
-        <section className="mt-8 border-t border-line pt-6" aria-labelledby="documents-heading">
-          <h2 id="documents-heading" className="font-display text-xl font-semibold">
-            Travel documents
-          </h2>
-          <p className="mt-2 text-base text-muted">
-            We need your passport, visa and a passport-style photo before you can pay. Our team reviews
-            each file. Only you and authorised staff can see them.
-          </p>
-          <ul className="mt-4 grid gap-6">
-            {REQUIRED_DOCUMENT_TYPES.map((docType) => {
-              // The list is newest first, so the first match is the latest upload.
-              const latest = documents.find((document) => document.docType === docType);
-              return (
-                <li key={docType} className="border border-line bg-paper p-4">
-                  <h3 className="text-lg font-semibold">{DOCUMENT_TYPE_LABELS[docType]}</h3>
-                  <p className="mt-1 text-base">
-                    {latest ? (
-                      <>
-                        <strong>{DOCUMENT_STATUS_LABELS[latest.status]}</strong>
-                        <span className="text-muted">, {latest.originalFilename}</span>
-                      </>
-                    ) : (
-                      <span className="text-muted">Not uploaded yet</span>
-                    )}
-                  </p>
-                  <DocumentUploadForm
-                    bookingId={booking.id}
-                    docType={docType}
-                    label={DOCUMENT_TYPE_LABELS[docType]}
-                    hasFile={Boolean(latest)}
-                  />
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ) : null}
-      {booking.status === "GUIDE_ASSIGNED" && booking.sdfRecord && booking.sdfRecord.currency === booking.package.currency ? (
-        <PaymentPanel
-          bookingId={booking.id}
-          totalLabel={formatPrice(String(packageTotal + Number(booking.sdfRecord.totalSdf)), booking.package.currency)}
-        />
-      ) : null}
-      {booking.status === "CONFIRMED" ? (
-        <p className="mt-8 border border-line bg-paper p-4 text-base">
-          <strong>Your booking is confirmed and paid.</strong> We have emailed you the details.
-        </p>
-      ) : null}
-      {booking.status === "DRAFT" || booking.status === "SDF_CALCULATED" ? (
-        <p className="mt-8 border border-line bg-paper p-4 text-base">
-          Nothing has been charged yet. Once your fee is calculated and your documents are uploaded, our
-          team assigns your guide and vehicle. You can then pay here.
-        </p>
+        <div className="mt-8">
+          <FeeSummary booking={booking} />
+        </div>
       ) : null}
     </article>
   );

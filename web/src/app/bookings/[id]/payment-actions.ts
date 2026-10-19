@@ -14,7 +14,7 @@ export async function startPayment(bookingId: string): Promise<StartPaymentResul
   const result = await createPaymentIntent(bookingId);
   if (!result.ok) {
     if (result.status === 401) {
-      redirect(`/login?next=${encodeURIComponent(`/bookings/${bookingId}`)}`);
+      redirect(`/login?next=${encodeURIComponent(`/bookings/${bookingId}/payment`)}`);
     }
     return { error: result.error };
   }

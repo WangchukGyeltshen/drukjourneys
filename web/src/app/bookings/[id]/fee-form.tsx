@@ -23,11 +23,11 @@ export function FeeForm({
   const category = state.values?.category ?? savedCategory ?? "";
 
   return (
-    <form action={formAction} className="mt-8 grid gap-4 border-t border-line pt-6">
-      <h2 className="font-display text-xl font-semibold">Calculate your Sustainable Development Fee</h2>
+    <form action={formAction} className="mt-6 grid gap-4 border border-line bg-paper p-5">
+      <h2 className="font-display text-xl font-semibold">Tell us who is travelling</h2>
       <p className="text-base text-muted">
-        The fee is charged for each traveller and each night. Travellers under 6 are exempt and
-        travellers aged 6 to 12 pay half.
+        The Sustainable Development Fee is charged for each traveller and each night. Travellers under 6
+        are exempt and travellers aged 6 to 12 pay half.
       </p>
       <input type="hidden" name="bookingId" value={bookingId} />
       <div>

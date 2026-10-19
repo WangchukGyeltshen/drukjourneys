@@ -34,10 +34,10 @@ export async function submitFee(_previous: FeeFormState, formData: FormData): Pr
   const result = await calculateFee(bookingId, { travelerCategory: category as TravelerCategory, ages });
   if (!result.ok) {
     if (result.status === 401) {
-      redirect(`/login?next=${encodeURIComponent(`/bookings/${bookingId}`)}`);
+      redirect(`/login?next=${encodeURIComponent(`/bookings/${bookingId}/fee`)}`);
     }
     return { error: result.error, values };
   }
 
-  redirect(`/bookings/${bookingId}`);
+  redirect(`/bookings/${bookingId}/fee`);
 }

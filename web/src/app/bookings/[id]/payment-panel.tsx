@@ -30,13 +30,7 @@ export function PaymentPanel({ bookingId, totalLabel }: { bookingId: string; tot
   }
 
   return (
-    <section className="mt-8 border-t border-line pt-6" aria-labelledby="payment-heading">
-      <h2 id="payment-heading" className="font-display text-xl font-semibold">
-        Pay for your trip
-      </h2>
-      <p className="mt-2 text-base text-muted">
-        Your guide and vehicle are assigned. Pay {totalLabel} by card to confirm the booking.
-      </p>
+    <div className="mt-4">
       {!stripePromise ? (
         <p role="alert" className="mt-4 text-base font-medium text-maroon">
           Card payments are not set up on this site yet.
@@ -55,7 +49,7 @@ export function PaymentPanel({ bookingId, totalLabel }: { bookingId: string; tot
           </p>
         </div>
       )}
-    </section>
+    </div>
   );
 }
 

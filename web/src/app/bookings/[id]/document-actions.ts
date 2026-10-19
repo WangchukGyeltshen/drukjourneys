@@ -32,10 +32,10 @@ export async function uploadTravelDocument(
   const result = await uploadDocument(docType as RequiredDocumentType, file);
   if (!result.ok) {
     if (result.status === 401) {
-      redirect(`/login?next=${encodeURIComponent(`/bookings/${bookingId}`)}`);
+      redirect(`/login?next=${encodeURIComponent(`/bookings/${bookingId}/documents`)}`);
     }
     return { error: result.error };
   }
 
-  redirect(`/bookings/${bookingId}`);
+  redirect(`/bookings/${bookingId}/documents`);
 }
