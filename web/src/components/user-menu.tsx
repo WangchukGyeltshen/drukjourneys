@@ -16,6 +16,9 @@ export async function UserMenu() {
 
   return (
     <div className="flex items-center gap-4">
+      <Link href="/bookings" className="underline-offset-4 hover:underline">
+        My bookings
+      </Link>
       <span className="hidden sm:inline">{user.fullName}</span>
       <form action={logout}>
         <button type="submit" className="min-h-11 underline-offset-4 hover:underline">

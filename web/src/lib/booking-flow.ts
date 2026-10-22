@@ -55,3 +55,16 @@ export function flowSteps(booking: Booking, documentsOk: boolean): FlowStep[] {
     return { ...step, state: 'upcoming' as const }
   })
 }
+
+// Short "what happens next" line for the My bookings list.
+export const BOOKING_NEXT_HINT: Record<Booking['status'], string> = {
+  DRAFT: 'Next: calculate your fee',
+  SDF_CALCULATED: 'Next: upload your documents',
+  GUIDE_ASSIGNED: 'Ready to pay',
+  CONFIRMED: 'Confirmed and paid',
+  CANCELLED: 'Cancelled',
+}
+
+export function canCancel(status: Booking['status']): boolean {
+  return status === 'DRAFT' || status === 'SDF_CALCULATED' || status === 'GUIDE_ASSIGNED'
+}

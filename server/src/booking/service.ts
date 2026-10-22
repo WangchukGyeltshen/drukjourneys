@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma.js'
 import type { Pagination } from '../lib/pagination.js'
 import { calculateGroupSdf } from '../sdf/engine.js'
 import { sendNotification } from '../notification/service.js'
+import { stripe } from '../lib/stripe.js'
 import type { CreateBookingInput, CalculateBookingSdfInput, AssignGuideInput } from './schemas.js'
 import {
   PackageNotFoundError,
@@ -269,6 +270,29 @@ export async function cancelBooking(params: { bookingId: string; userId: string;
 
   if (booking.status === 'CANCELLED') {
     throw new InvalidBookingStatusError('Booking is already cancelled')
+  }
+
+  // A paid booking needs a refund decision (SRS FR-17: cancellation is
+  // subject to operator and TCB refund policy), so it cannot be cancelled
+  // with one click. Staff handle it through support.
+  const payment = await prisma.payment.findUnique({ where: { bookingId: booking.id } })
+  if (booking.status === 'CONFIRMED' || payment?.status === 'SUCCEEDED') {
+    throw new InvalidBookingStatusError(
+      'A paid booking cannot be cancelled online. Please contact support to request a cancellation and refund.'
+    )
+  }
+
+  // An unfinished card payment must be closed with Stripe too, otherwise
+  // the traveller could still complete it after the booking is cancelled.
+  if (payment && payment.status === 'PENDING' && payment.providerRef) {
+    try {
+      await stripe.paymentIntents.cancel(payment.providerRef)
+    } catch {
+      throw new InvalidBookingStatusError(
+        'We could not close the pending card payment. Please try again, or contact support.'
+      )
+    }
+    await prisma.payment.update({ where: { id: payment.id }, data: { status: 'FAILED' } })
   }
 
   // If a guide/vehicle had been assigned, cancelling the booking must

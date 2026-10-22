@@ -4,8 +4,10 @@ import { BookingProgress } from "@/components/booking-progress";
 import { BookingShell } from "@/components/booking-shell";
 import { FeeSummary } from "@/components/fee-summary";
 import { BOOKING_STATUS_LABELS, type Booking } from "@/lib/bookings-api";
+import { canCancel } from "@/lib/booking-flow";
 import { formatDay } from "@/lib/dates";
 import { formatPrice } from "@/lib/format";
+import { CancelBooking } from "./cancel-booking";
 import { loadBookingFlow } from "./load-booking";
 
 export const metadata: Metadata = {
@@ -127,6 +129,18 @@ async function BookingOverview({ params }: { params: Promise<{ id: string }> }) 
         <div className="mt-8">
           <FeeSummary booking={booking} />
         </div>
+      ) : null}
+
+      {canCancel(booking.status) ? (
+        <div className="mt-8 border-t border-line pt-6">
+          <CancelBooking bookingId={booking.id} />
+        </div>
+      ) : null}
+      {booking.status === "CONFIRMED" ? (
+        <p className="mt-8 border-t border-line pt-6 text-sm text-muted">
+          A paid booking cannot be cancelled online. To cancel or change it, contact us and we will
+          explain the refund policy.
+        </p>
       ) : null}
     </article>
   );

@@ -130,3 +130,43 @@ export async function calculateFee(
   const data = (await response.json().catch(() => null)) as { error?: string } | null
   return { ok: false, status: response.status, error: data?.error ?? 'Something went wrong. Please try again.' }
 }
+
+export type BookingList = { bookings: Booking[]; total: number }
+
+// The signed-in traveller's bookings, newest first. Returns "signed-out"
+// when there is no valid session.
+export async function listMyBookings(): Promise<BookingList | 'signed-out'> {
+  let response: Response | null
+  try {
+    response = await authedFetch('/bookings?pageSize=50')
+  } catch {
+    throw new Error('Could not reach the booking service')
+  }
+  if (!response || response.status === 401) {
+    return 'signed-out'
+  }
+  if (!response.ok) {
+    throw new Error(`Booking list request failed with status ${response.status}`)
+  }
+  const data = (await response.json()) as { bookings: Booking[]; pagination: { total: number } }
+  return { bookings: data.bookings, total: data.pagination.total }
+}
+
+export type CancelBookingResult = { ok: true } | { ok: false; status: number; error: string }
+
+export async function cancelBooking(bookingId: string): Promise<CancelBookingResult> {
+  let response: Response | null
+  try {
+    response = await authedFetch(`/bookings/${encodeURIComponent(bookingId)}/cancel`, { method: 'POST' })
+  } catch {
+    return { ok: false, status: 0, error: 'We could not reach the server. Please try again.' }
+  }
+  if (!response) {
+    return { ok: false, status: 401, error: 'Please sign in again.' }
+  }
+  if (response.ok) {
+    return { ok: true }
+  }
+  const data = (await response.json().catch(() => null)) as { error?: string } | null
+  return { ok: false, status: response.status, error: data?.error ?? 'Something went wrong. Please try again.' }
+}
