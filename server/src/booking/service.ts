@@ -60,6 +60,19 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
   })
 }
 
+// Everything a booking page needs. The guide and vehicle are limited to the
+// fields a traveller may see: no licence number is returned.
+const BOOKING_INCLUDE = {
+  package: true,
+  sdfRecord: true,
+  guideAssignment: {
+    include: {
+      guide: { select: { name: true } },
+      vehicle: { select: { type: true, plateNumber: true } },
+    },
+  },
+} as const
+
 // Tourists see only their own bookings; Agents/Admins see everything.
 // The caller decides which to run based on the authenticated user's role.
 async function findBookingsPage(where: { userId: string } | undefined, pagination: Pagination) {
@@ -67,7 +80,7 @@ async function findBookingsPage(where: { userId: string } | undefined, paginatio
     prisma.booking.findMany({
       where,
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], // id breaks ties so pages never overlap
-      include: { package: true, sdfRecord: true, guideAssignment: true },
+      include: BOOKING_INCLUDE,
       skip: pagination.skip,
       take: pagination.take,
     }),
@@ -87,7 +100,7 @@ export async function listAllBookings(pagination: Pagination) {
 async function getBookingOrThrow(bookingId: string) {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { package: true, sdfRecord: true, guideAssignment: true },
+    include: BOOKING_INCLUDE,
   })
   if (!booking) {
     throw new BookingNotFoundError()

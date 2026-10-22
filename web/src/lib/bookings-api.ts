@@ -23,6 +23,11 @@ export type SdfRecord = {
   currency: string
 }
 
+export type GuideAssignment = {
+  guide: { name: string }
+  vehicle: { type: string; plateNumber: string }
+}
+
 export type Booking = {
   id: string
   packageId: string
@@ -33,6 +38,7 @@ export type Booking = {
   createdAt: string
   package: TourPackage
   sdfRecord: SdfRecord | null
+  guideAssignment: GuideAssignment | null
 }
 
 export type CreateBookingResult =

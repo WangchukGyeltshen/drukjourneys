@@ -107,6 +107,22 @@ async function BookingOverview({ params }: { params: Promise<{ id: string }> }) 
         <dd>{formatPrice(booking.package.basePrice, booking.package.currency)} per person</dd>
       </dl>
 
+      {booking.guideAssignment ? (
+        <section className="mt-8 border border-line bg-paper p-5" aria-labelledby="team-heading">
+          <h2 id="team-heading" className="font-display text-xl font-semibold">
+            Your guide and vehicle
+          </h2>
+          <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-8 gap-y-2 text-base">
+            <dt className="font-semibold">Guide</dt>
+            <dd>{booking.guideAssignment.guide.name}</dd>
+            <dt className="font-semibold">Vehicle</dt>
+            <dd>
+              {booking.guideAssignment.vehicle.type}, plate {booking.guideAssignment.vehicle.plateNumber}
+            </dd>
+          </dl>
+        </section>
+      ) : null}
+
       {booking.sdfRecord ? (
         <div className="mt-8">
           <FeeSummary booking={booking} />
